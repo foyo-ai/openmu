@@ -85,7 +85,7 @@ internal class EntityFrameworkContextBase : IContext
 
         try
         {
-            await this.Context.SaveChangesAsync(acceptChanges, cancellationToken).ConfigureAwait(false);
+            await this.SaveChangesWithPhantomDeleteReconciliationAsync(acceptChanges, cancellationToken).ConfigureAwait(false);
 
             if (args is not null)
             {
@@ -104,6 +104,71 @@ internal class EntityFrameworkContextBase : IContext
             sender = s;
             args = e;
         }
+    }
+
+    /// <summary>
+    /// Saves the changes, reconciling "phantom" deletes before giving up.
+    /// </summary>
+    /// <param name="acceptChanges">If set to <c>true</c>, the changes are accepted on success.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <remarks>
+    /// A phantom delete can occur when an entity was created (and thus assigned a real key by the
+    /// <see cref="GuidV7ValueGenerator"/>) but never persisted, and then got detached and re-attached -
+    /// e.g. through item drop/pickup, trade, player store or temporary storage restore. After the
+    /// re-attach the entity is tracked as <see cref="EntityState.Unchanged"/> despite not existing in
+    /// the database, so removing it later issues a DELETE which affects 0 rows and throws a
+    /// <see cref="DbUpdateConcurrencyException"/>, rolling back the whole batch.
+    /// Because OpenMU does not use optimistic concurrency tokens, a DELETE affecting 0 rows simply means
+    /// the row is already gone - which is the desired end state. We therefore detach such entries and
+    /// retry, so the rest of the batch is persisted instead of the entire save being lost.
+    /// A 0-row result for any non-deleted entry (e.g. a genuine missing UPDATE target) is a real signal
+    /// and is not swallowed.
+    /// </remarks>
+    private async Task SaveChangesWithPhantomDeleteReconciliationAsync(bool acceptChanges, CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 5;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await this.Context.SaveChangesAsync(acceptChanges, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (DbUpdateConcurrencyException ex) when (attempt < maxAttempts && IsPhantomDelete(ex))
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    this._logger.LogWarning(
+                        "Reconciling phantom delete of {EntityType} (Id: {Id}), which was not present in the database; detaching and retrying save (attempt {Attempt}/{MaxAttempts}).",
+                        entry.Entity.GetType().Name,
+                        TryGetPrimaryKeyValue(entry),
+                        attempt,
+                        maxAttempts);
+
+                    // Detached (not Unchanged): the row really is gone, and the entity is no longer
+                    // referenced by its aggregate, so re-marking it Unchanged would just be detected as
+                    // an orphan and deleted again on the next attempt, looping forever.
+                    entry.State = EntityState.Detached;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the given exception was caused exclusively by deletes of rows which do not
+    /// exist anymore (or never existed), and can therefore be safely reconciled by detaching them.
+    /// </summary>
+    /// <param name="ex">The exception.</param>
+    /// <returns><c>true</c> if every affected entry is in the <see cref="EntityState.Deleted"/> state.</returns>
+    private static bool IsPhantomDelete(DbUpdateConcurrencyException ex)
+    {
+        return ex.Entries.Count > 0 && ex.Entries.All(entry => entry.State == EntityState.Deleted);
+    }
+
+    private static object? TryGetPrimaryKeyValue(EntityEntry entry)
+    {
+        var keyProperty = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
+        return keyProperty is null ? null : entry.Property(keyProperty.Name).CurrentValue;
     }
 
     /// <inheritdoc />
