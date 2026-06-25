@@ -345,6 +345,7 @@ public enum UpdateVersion
     /// </summary>
     AddProjectileCountToTripleShot = 67,
 
+    /// <summary>
     /// The version of the <see cref="RemoveJewelDropLevelGapPlugIn075"/>.
     /// </summary>
     RemoveJewelDropLevelGap075 = 68,
@@ -359,6 +360,7 @@ public enum UpdateVersion
     /// </summary>
     RemoveJewelDropLevelGapSeason6 = 70,
 
+    /// <summary>
     /// The version of the <see cref="FixRageFighterMultipleHitSkillsPlugIn"/>.
     /// </summary>
     FixRageFighterMultipleHitSkills = 71,
@@ -422,4 +424,19 @@ public enum UpdateVersion
     /// The version of the <see cref="AddRandomExperienceConfigAttributesPlugInSeason6"/>.
     /// </summary>
     AddRandomExperienceConfigAttributesSeason6 = 83,
+
+    /// <summary>
+    /// The version of the <see cref="AddMovementSpeedAttributesPlugIn075"/>.
+    /// </summary>
+    AddMovementSpeedAttributes075 = 84,
+
+    /// <summary>
+    /// The version of the <see cref="AddMovementSpeedAttributesPlugIn095D"/>.
+    /// </summary>
+    AddMovementSpeedAttributes095d = 85,
+
+    /// <summary>
+    /// The version of the <see cref="AddMovementSpeedAttributesPlugInSeason6"/>.
+    /// </summary>
+    AddMovementSpeedAttributesSeason6 = 86,
 }

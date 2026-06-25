@@ -37,6 +37,23 @@ public static class AttackableExtensions
     }
 
     /// <summary>
+    /// Determines whether an attack is blocked because the target or the player attacker is in a safezone.
+    /// </summary>
+    /// <param name="target">The attack target.</param>
+    /// <param name="attacker">The attacker.</param>
+    /// <returns><c>true</c>, if the attack is blocked; otherwise, <c>false</c>.</returns>
+    public static bool IsAttackBlockedBySafezone(this IAttackable target, IAttacker attacker)
+    {
+        if (target.IsAtSafezone())
+        {
+            return true;
+        }
+
+        var attackerPlayer = attacker as Player ?? (attacker as IPlayerSurrogate)?.Owner;
+        return attackerPlayer?.IsAtSafezone() is true;
+    }
+
+    /// <summary>
     /// Calculates the damage using a skill.
     /// </summary>
     /// <param name="attacker">The object that is attacking.</param>
@@ -112,7 +129,7 @@ public static class AttackableExtensions
 
             if (attacker.Attributes[Stats.HasDoubleWield] > 0)
             {
-                // double wield => 110% dmg (55% + 55%)
+                // Double wield => 110% dmg (55% + 55%).
                 dmg += dmg;
             }
 
@@ -136,7 +153,7 @@ public static class AttackableExtensions
         }
         else
         {
-            // Wizardry, Curse, and Fenrir
+            // Wizardry, Curse, and Fenrir.
             if (isExcellentHit)
             {
                 dmg = (int)((baseMaxDamage * duelDmgDec) - defense);
@@ -218,7 +235,8 @@ public static class AttackableExtensions
                 {
                     multiplier = skillMultiplier;
 
-                    if (skill.Skill!.Number == 265 && !isPvp) // DragonSlasher
+                    // DragonSlasher.
+                    if (skill.Skill!.Number == 265 && !isPvp)
                     {
                         multiplier *= 3;
                     }
@@ -425,12 +443,11 @@ public static class AttackableExtensions
     /// <param name="target">The target.</param>
     /// <param name="attacker">The attacker.</param>
     /// <param name="skill">The skill.</param>
-    /// <param name="powerUp">The power up.</param>
+    /// <param name="powerUps">The power ups.</param>
     /// <param name="duration">The duration.</param>
-    /// <param name="targetAttribute">The target attribute.</param>
     /// <param name="hitInfo">The hit information.</param>
     /// <returns>The success of the appliance.</returns>
-    public static async ValueTask<bool> TryApplyElementalEffectsAsync(this IAttackable target, IAttacker attacker, Skill skill, IElement? powerUp, IElement? duration, AttributeDefinition? targetAttribute, HitInfo? hitInfo)
+    public static async ValueTask<bool> TryApplyElementalEffectsAsync(this IAttackable target, IAttacker attacker, Skill skill, IReadOnlyCollection<(AttributeDefinition Target, IElement Boost)> powerUps, IElement? duration, HitInfo? hitInfo)
     {
         if (!target.IsAlive)
         {
@@ -453,12 +470,11 @@ public static class AttackableExtensions
 
         if (skill.MagicEffectDef is { } effectDefinition
             && !target.MagicEffectList.ActiveEffects.ContainsKey(effectDefinition.Number)
-            && powerUp is not null
             && duration is not null
-            && targetAttribute is not null)
+            && powerUps.Count > 0)
         {
             // power-up is the wrong term here... it's more like a power-down ;-)
-            await target.ApplyMagicEffectAsync(attacker, effectDefinition, duration, hitInfo, (targetAttribute, powerUp)).ConfigureAwait(false);
+            await target.ApplyMagicEffectAsync(attacker, effectDefinition, duration, hitInfo, [.. powerUps]).ConfigureAwait(false);
             applied = true;
         }
 
@@ -806,7 +822,7 @@ public static class AttackableExtensions
                 maximumBaseDamage = (int)attackerStats[Stats.FenrirBaseDmg] + skillMaximumDamage;
                 break;
             default:
-                // the skill has some other damage type defined that is not applicable to this calculation
+                // The skill has some other damage type defined that is not applicable to this calculation.
                 break;
         }
 
@@ -925,15 +941,20 @@ public static class AttackableExtensions
         {
             int bonusDamage = 0;
 
-            if (attacker.Attributes[Stats.IsSpearEquipped] > 0) // always two-handed
+            // Always two-handed.
+            if (attacker.Attributes[Stats.IsSpearEquipped] > 0)
             {
                 bonusDamage = (int)attacker.Attributes[Stats.SpearBonusDamage];
             }
-            else if (attacker.Attributes[Stats.IsScepterEquipped] > 0) // impossible to double wield
+
+            // Impossible to double wield.
+            else if (attacker.Attributes[Stats.IsScepterEquipped] > 0)
             {
                 bonusDamage = (int)attacker.Attributes[Stats.ScepterStrBonusDamage];
             }
-            else if (attacker.Attributes[Stats.IsGloveWeaponEquipped] > 0) // impossible to double wield
+
+            // Impossible to double wield.
+            else if (attacker.Attributes[Stats.IsGloveWeaponEquipped] > 0)
             {
                 bonusDamage = (int)attacker.Attributes[Stats.GloveWeaponBonusDamage];
             }
@@ -946,7 +967,7 @@ public static class AttackableExtensions
 
                 if (attacker.Attributes[Stats.IsMaceEquipped] > 0)
                 {
-                    // In case of a double wield with different possible bonuses, take the average
+                    // In case of a double wielding with different possible bonuses, take the average.
                     bonusDamage = (int)(bonusDamage == 0
                         ? attacker.Attributes[Stats.MaceBonusDamage]
                         : (bonusDamage + attacker.Attributes[Stats.MaceBonusDamage]) / 2);
