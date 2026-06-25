@@ -1,0 +1,69 @@
+# All-in-one OpenMU deployment for a single Hetzner VPS (Singapore).
+# - The game server image is PULLED from GHCR (built by GitHub Actions), never built on the box.
+# - Postgres is treated as sacred: pinned major version, explicit PGDATA, named volume,
+#   and NO published port (only reachable inside the compose network).
+# - The admin panel is bound to localhost only; reach it via an SSH tunnel.
+#
+# Usage on the VPS:
+#   cd /opt/openmu/deploy/hetzner
+#   cp .env.example .env   # then edit secrets
+#   docker compose up -d
+
+services:
+  openmu-startup:
+    image: ${OPENMU_IMAGE:-ghcr.io/foyo-ai/openmu}:${IMAGE_TAG:-production}
+    container_name: openmu-startup
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      DB_HOST: database
+      DB_ADMIN_USER: ${DB_ADMIN_USER:-postgres}
+      DB_ADMIN_PW: ${DB_ADMIN_PW:?set DB_ADMIN_PW in .env}
+    ports:
+      # Admin panel — localhost only. Reach it with:  ssh -L 8080:localhost:8080 <user>@<vps-ip>
+      - "127.0.0.1:8080:8080"
+      # Connect server (the client connects here first)
+      - "44405:44405"
+      - "44406:44406"
+      # Game servers
+      - "55901:55901"
+      - "55902:55902"
+      - "55903:55903"
+      - "55904:55904"
+      - "55905:55905"
+      - "55906:55906"
+      - "55907:55907"
+      - "55908:55908"
+      - "55909:55909"
+      - "55910:55910"
+      # Sub-server (RPC / chat)
+      - "55980:55980"
+
+  database:
+    # Pinned major version. NEVER bump this casually: Postgres refuses to start on a data
+    # directory created by an older major, so a major-version jump needs pg_upgrade/dump+restore.
+    image: postgres:17-alpine
+    container_name: openmu-database
+    restart: unless-stopped
+    # No "ports:" on purpose — the DB must not be reachable from the public internet.
+    environment:
+      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PW:?set DB_ADMIN_PW in .env}
+      POSTGRES_DB: openmu
+      # Explicit data directory (subdir of the mount) so the volume layout is stable across image updates.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER:-postgres} -d openmu"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dbdata:
+    name: openmu-dbdata
