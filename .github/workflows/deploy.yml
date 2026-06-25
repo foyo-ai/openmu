@@ -51,16 +51,26 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read          # so GITHUB_TOKEN can pull the (private) GHCR image
     steps:
       - name: Pull & restart on the VPS over SSH
         uses: appleboy/ssh-action@v1
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER
           script_stop: true
           script: |
+            # Log in to GHCR with the workflow's short-lived token (keeps the image private)
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             cd /opt/openmu/deploy/hetzner
             docker compose pull openmu-startup
             docker compose up -d openmu-startup
             docker image prune -f
+            docker logout ghcr.io
