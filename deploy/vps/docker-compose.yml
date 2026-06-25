@@ -1,13 +1,16 @@
-# All-in-one OpenMU deployment for a single Hetzner VPS (Singapore).
+# All-in-one OpenMU deployment for a single cloud VPS (DigitalOcean SGP1).
 # - The game server image is PULLED from GHCR (built by GitHub Actions), never built on the box.
 # - Postgres is treated as sacred: pinned major version, explicit PGDATA, named volume,
 #   and NO published port (only reachable inside the compose network).
 # - The admin panel is bound to localhost only; reach it via an SSH tunnel.
 #
 # Usage on the VPS:
-#   cd /opt/openmu/deploy/hetzner
+#   cd /opt/openmu/deploy/vps
 #   cp .env.example .env   # then edit secrets
 #   docker compose up -d
+
+# Fixed project name so containers/volumes are stable regardless of the directory name.
+name: openmu
 
 services:
   openmu-startup:

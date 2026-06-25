@@ -69,7 +69,7 @@ jobs:
             set -e   # fail the deploy if any command below fails
             # Log in to GHCR with the workflow's short-lived token (keeps the image private)
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cd /opt/openmu/deploy/hetzner
+            cd /opt/openmu/deploy/vps
             docker compose pull openmu-startup
             docker compose up -d openmu-startup
             docker image prune -f
