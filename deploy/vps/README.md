@@ -30,7 +30,7 @@ data lives in a named volume (`openmu-dbdata`) and is never rebuilt on an app de
 | Droplet | `openmu`, size `s-2vcpu-4gb` (2 vCPU, 4 GB, 80 GB), Ubuntu 24.04 — **$24/mo** |
 | Public IP | `168.144.37.156` |
 | App dir on server | `/opt/openmu/deploy/vps` |
-| Admin panel | port 8080, **localhost-only** (reach via SSH tunnel) |
+| Admin panel | **https://admin.muss6.org** (Let's Encrypt + nginx basic auth), or SSH tunnel to localhost:8080 |
 | Game ports (public) | 44405–44406 (connect), 55901–55910 (game), 55980 |
 | Firewall | DO Cloud Firewall `openmu-fw` |
 
@@ -178,6 +178,35 @@ ssh -L 8080:localhost:8080 -i ~/.ssh/openmu_deploy deploy@<IP>
 ```
 
 Default login `admin` / `openmu` — **change it immediately.**
+
+### HTTPS access (alternative to the SSH tunnel — more responsive for the Blazor UI)
+
+nginx + certbot are defined in `docker-compose.yml` under the `https` profile and proxy
+`https://admin.muss6.org` → the admin panel, with a Let's Encrypt cert and an nginx basic-auth
+gate (the hashed credential lives in `.htpasswd` on the server, username `admin`).
+
+First-time setup (already done for this server):
+
+```bash
+# 1. Point DNS:  A  admin.<domain>  ->  <droplet IP>   (wait until it resolves publicly)
+# 2. Open 80 + 443 in the cloud firewall.
+# 3. Create the basic-auth credential (MUST be world-readable or nginx workers 500):
+ssh deploy@<IP> 'cd /opt/openmu/deploy/vps && \
+  echo "admin:$(openssl passwd -apr1 <PASSWORD>)" > .htpasswd && chmod 644 .htpasswd'
+# 4. Start nginx (HTTP-only) + certbot:
+docker compose --profile https up -d nginx certbot
+# 5. Issue the certificate (webroot):
+docker exec openmu-certbot certbot certonly --webroot -w /var/www/certbot \
+  -d admin.<domain> --email <you@example.com> --agree-tos --no-eff-email --non-interactive
+# 6. Activate the HTTPS server block and reload:
+cp nginx/conf.d-https/admin-https.conf nginx/conf.d/ && docker exec openmu-nginx nginx -s reload
+```
+
+Renewal is automatic: the `certbot` container retries `renew` every 12h and `nginx` reloads
+every 6h to pick up new certs. Gotchas: `.htpasswd` must be `chmod 644` (nginx workers run as
+the `nginx` user, not the owner — a `600` file causes a 500 *after* auth); and `admin-https.conf`
+is kept in `conf.d-https/` so nginx doesn't try to load it before the cert exists — it's copied
+into the live `conf.d/` only after issuance (and stays there).
 
 ### Enable non-interactive schema updates (REQUIRED for auto-deploy)
 

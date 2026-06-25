@@ -1,2 +1,6 @@
 # Never commit real secrets — only the example is tracked.
 .env
+
+# HTTPS server-side secrets (never commit)
+certbot/
+.htpasswd
