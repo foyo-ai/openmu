@@ -1,4 +1,4 @@
-name: Deploy to Hetzner
+name: Deploy to VPS
 
 # Builds the OpenMU image on GitHub's runners (NOT on the small VPS), pushes it to
 # GHCR, then SSHes into the VPS to pull + restart only the app container.
@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}   # allow manual "Run workflow" from the Actions tab
 
 concurrency:
-  group: deploy-hetzner
+  group: deploy-vps
   cancel-in-progress: false   # never interrupt a deploy mid-flight
 
 env:
