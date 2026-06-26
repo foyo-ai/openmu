@@ -49,9 +49,14 @@ public class PersistentObjectsLookupController : ILookupController
 
             var owner = await this._gameConfigurationSource.GetOwnerAsync().ConfigureAwait(true);
             IEnumerable<T> values;
-            if (this._gameConfigurationSource.IsSupporting(typeof(T))
-                && persistenceContext?.IsSupporting(typeof(T)) is not true)
+            if (this._gameConfigurationSource.IsSupporting(typeof(T)))
             {
+                // The whole game configuration is already loaded in memory by the singleton
+                // data source, and it is the same object graph that an edit context works on.
+                // Always serve configuration types (e.g. ItemDefinition) from there instead of
+                // re-querying the database on every keystroke — even when the current edit
+                // context happens to support the type. Doing the latter loaded and deserialized
+                // every object of the type per keystroke, making lookups take many seconds.
                 values = this._gameConfigurationSource.GetAll<T>();
             }
             else
