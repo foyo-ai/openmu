@@ -20,6 +20,7 @@ using MUnique.OpenMU.Web.Shared.Models;
 public class PlugInController : IDataService<PlugInConfigurationViewItem>, ISupportDataChangedNotification
 {
     private readonly IDataSource<GameConfiguration> _dataSource;
+    private readonly IPersistenceContextProvider _contextProvider;
     private readonly IModalService _modalService;
 
     private Guid _pointFilter;
@@ -30,10 +31,12 @@ public class PlugInController : IDataService<PlugInConfigurationViewItem>, ISupp
     /// Initializes a new instance of the <see cref="PlugInController" /> class.
     /// </summary>
     /// <param name="dataSource">The data source.</param>
+    /// <param name="contextProvider">The persistence context provider.</param>
     /// <param name="modalService">The modal service.</param>
-    public PlugInController(IDataSource<GameConfiguration> dataSource, IModalService modalService)
+    public PlugInController(IDataSource<GameConfiguration> dataSource, IPersistenceContextProvider contextProvider, IModalService modalService)
     {
         this._dataSource = dataSource;
+        this._contextProvider = contextProvider;
         this._modalService = modalService;
     }
 
@@ -321,8 +324,30 @@ public class PlugInController : IDataService<PlugInConfigurationViewItem>, ISupp
 
     private async ValueTask ChangeActiveFlagAsync(PlugInConfigurationViewItem item, bool value)
     {
+        // Persist the single IsActive flag through a context scoped to PlugInConfiguration only.
+        // Saving through the shared game-configuration context made EF Core run change-detection
+        // over the entire configuration graph (tens of thousands of entities), so each toggle took
+        // several seconds. The typed context still carries the change listener, so the running game
+        // is notified of the change as before.
+        var gameConfiguration = await this._dataSource.GetOwnerAsync().ConfigureAwait(true);
+        using (var context = this._contextProvider.CreateNewTypedContext(typeof(PlugInConfiguration), false, gameConfiguration))
+        {
+            if (await context.GetByIdAsync(item.Id, typeof(PlugInConfiguration)).ConfigureAwait(false) is PlugInConfiguration config)
+            {
+                config.IsActive = value;
+                await context.SaveChangesAsync().ConfigureAwait(false);
+            }
+        }
+
+        // Reflect the change on the in-memory configuration the grid reads from, then re-baseline
+        // just this entity in the shared (warm) context so the toggle doesn't leave it dirty.
+        // Fully reloading the configuration to clear that flag would cost seconds and evict the
+        // warm cache the rest of the admin panel relies on.
         item.Configuration.IsActive = value;
-        await (await this._dataSource.GetContextAsync().ConfigureAwait(true)).SaveChangesAsync().ConfigureAwait(true);
+        var sharedContext = await this._dataSource.GetContextAsync().ConfigureAwait(true);
+        sharedContext.Detach(item.Configuration);
+        sharedContext.Attach(item.Configuration);
+
         this.DataChanged?.Invoke(this, EventArgs.Empty);
     }
 
