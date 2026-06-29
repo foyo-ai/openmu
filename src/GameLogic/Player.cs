@@ -1518,7 +1518,18 @@ public class Player : AsyncDisposable, IBucketMapObserver, IAttackable, IAttacke
         {
             try
             {
-                await this.InternalDisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    await this.InternalDisconnectAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // A failure during cleanup must not prevent the disconnect notification below.
+                    // Otherwise the account stays registered as connected at the login server (ghost
+                    // session) and the player can't log in again until disconnected manually.
+                    this.Logger.LogError(ex, "Error during disconnect cleanup; continuing to ensure the player is logged off. Player: {player}", this);
+                }
+
                 if (this.PlayerDisconnected is { } disconnectedEventHandler)
                 {
                     this.PlayerDisconnected = null;

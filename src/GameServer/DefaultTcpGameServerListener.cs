@@ -6,6 +6,7 @@ namespace MUnique.OpenMU.GameServer;
 
 using System.IO.Pipelines;
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.DataModel.Configuration;
 using MUnique.OpenMU.GameLogic;
@@ -165,6 +166,36 @@ public class DefaultTcpGameServerListener : IGameServerListener
             this.Log(l => l.LogDebug($"The server is full... disconnecting the game client {e.AcceptingSocket.RemoteEndPoint}"));
 
             e.Cancel = true;
+            return;
+        }
+
+        this.EnableTcpKeepAlive(e.AcceptingSocket);
+    }
+
+    /// <summary>
+    /// Enables TCP keep-alive on the accepted socket so that half-open connections (e.g. client crash,
+    /// power loss or network drop, where no TCP FIN is ever sent) get detected by the operating system.
+    /// When the keep-alive probes go unanswered the socket faults, which triggers the normal disconnect
+    /// handling and frees the account at the login server. Without this, such "ghost" sessions keep the
+    /// account registered as connected until it is disconnected manually.
+    /// The probes are answered by the client's operating system even while the player is idle, so only
+    /// genuinely dead connections are affected - an idle but connected player is not disconnected.
+    /// </summary>
+    /// <param name="socket">The accepted client socket.</param>
+    private void EnableTcpKeepAlive(Socket socket)
+    {
+        try
+        {
+            // Keep-alive itself is the important part; set it first so that even if tuning the
+            // intervals fails on some platform, the OS default keep-alive still applies.
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 30); // start probing after 30s without traffic
+            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 10); // send a probe every 10s
+            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3); // declare dead after 3 missed probes (~60s)
+        }
+        catch (Exception ex)
+        {
+            this.Log(l => l.LogWarning(ex, "Could not enable TCP keep-alive on the accepted socket {endpoint}. Ghost sessions may persist on unclean disconnects.", socket.RemoteEndPoint));
         }
     }
 
