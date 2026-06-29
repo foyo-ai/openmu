@@ -38,7 +38,13 @@ public class UpdateInventoryListPlugIn : IUpdateInventoryListPlugIn
         }
 
         // C4 00 00 00 F3 10 ...
+        // The personal store box uses inventory slots 204-235, which are exposed through the separate
+        // ShopStorage view and are therefore not part of Inventory.Items. We have to include them here so
+        // the owner's store box gets populated when entering the world; the client routes items into the
+        // store box by their slot. (When falling back to the raw character inventory, store items are
+        // already contained, and any resulting duplicate slot is filtered out by the seenSlots check below.)
         var items = (this._player.Inventory?.Items ?? this._player.SelectedCharacter?.Inventory?.Items ?? Enumerable.Empty<Item>())
+            .Concat(this._player.ShopStorage?.Items ?? Enumerable.Empty<Item>())
             .OrderBy(item => item.ItemSlot)
             .ToList();
         int Write()
