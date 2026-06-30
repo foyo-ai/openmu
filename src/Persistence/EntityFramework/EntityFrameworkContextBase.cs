@@ -6,6 +6,7 @@ namespace MUnique.OpenMU.Persistence.EntityFramework;
 
 using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -21,10 +22,24 @@ using Nito.Disposables;
 /// </summary>
 internal class EntityFrameworkContextBase : IContext
 {
+    private static readonly object PendingInsertMarker = new();
+
     private readonly bool _isOwner;
     private readonly IConfigurationChangeListener? _changeListener;
     private readonly AsyncLock _lock = new();
     private readonly ILogger _logger;
+
+    /// <summary>
+    /// Entities which were created in this context (and therefore assigned a real key) but never
+    /// persisted, and have since been detached. EF forgets that such an entity still needs an INSERT,
+    /// so a later <see cref="Attach"/> would demote it to <see cref="EntityState.Unchanged"/> - causing
+    /// either a silent lost INSERT or, once it is modified, a 0-row UPDATE that throws
+    /// <see cref="DbUpdateConcurrencyException"/> and rolls back the whole save (logout data loss).
+    /// We remember them here so <see cref="Attach"/> can restore the <see cref="EntityState.Added"/>
+    /// state. Weak keys: an entity that is never re-attached is simply collected, no leak.
+    /// </summary>
+    private readonly ConditionalWeakTable<object, object> _detachedPendingInserts = new();
+
     private bool _isDisposed;
     private int _notificationSuspensions;
 
@@ -151,6 +166,50 @@ internal class EntityFrameworkContextBase : IContext
                     entry.State = EntityState.Detached;
                 }
             }
+            catch (DbUpdateException ex)
+            {
+                // Diagnostic: this save failure is NOT a clean phantom-delete reconciliation
+                // (mixed/non-delete entries, or attempts exhausted), so the whole batch rolls back.
+                // Log every affected entry to identify the culprit, then rethrow unchanged so behavior
+                // is preserved.
+                this.LogFailedSaveEntries(ex);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Logs the entries which caused a <see cref="DbUpdateException"/> (and therefore a rolled-back
+    /// save), including entity type, primary key, tracking state and a best-effort description, so the
+    /// offending entity can be identified. Purely diagnostic; does not alter the save outcome.
+    /// </summary>
+    /// <param name="ex">The update exception.</param>
+    private void LogFailedSaveEntries(DbUpdateException ex)
+    {
+        if (ex.Entries.Count == 0)
+        {
+            this._logger.LogError(ex, "Save failed and rolled back, but the exception reported no affected entries.");
+            return;
+        }
+
+        foreach (var entry in ex.Entries)
+        {
+            string description;
+            try
+            {
+                description = entry.Entity.ToString() ?? entry.Entity.GetType().Name;
+            }
+            catch (Exception)
+            {
+                description = entry.Entity.GetType().Name;
+            }
+
+            this._logger.LogError(
+                "Save rolled back due to {EntityType} (Id: {Id}) tracked as {State}: {Description}",
+                entry.Entity.GetType().Name,
+                TryGetPrimaryKeyValue(entry),
+                entry.State,
+                description);
         }
     }
 
@@ -190,6 +249,7 @@ internal class EntityFrameworkContextBase : IContext
     {
         using var l = this._lock.Lock();
         this.Context.Attach(item);
+        this.RestorePendingInsertState(item);
     }
 
     private bool DetachInternal(object item)
@@ -202,9 +262,37 @@ internal class EntityFrameworkContextBase : IContext
 
         var previousState = entry.State;
         entry.State = EntityState.Detached;
+
+        if (previousState == EntityState.Added)
+        {
+            // The entity was created in this context but never persisted. Detaching it makes EF forget
+            // it still needs to be INSERTed; remember it so a later Attach can restore the Added state
+            // instead of letting EF demote it to Unchanged. See RestorePendingInsertState.
+            this._detachedPendingInserts.AddOrUpdate(item, PendingInsertMarker);
+        }
+
         this.ForEachAggregate(item, obj => this.DetachInternal(obj));
 
         return previousState != EntityState.Added;
+    }
+
+    /// <summary>
+    /// Restores the <see cref="EntityState.Added"/> state for any entity in the just-attached aggregate
+    /// that was created but never persisted before it was detached (see <see cref="_detachedPendingInserts"/>).
+    /// <see cref="DbContext.Attach(object)"/> marks every reachable entity as
+    /// <see cref="EntityState.Unchanged"/>, which would skip the INSERT for such a phantom (losing the item,
+    /// or - if it is later modified - issuing a 0-row UPDATE that rolls back the whole save). A correctly
+    /// re-Added entity simply gets INSERTed.
+    /// </summary>
+    /// <param name="item">The root of the attached aggregate.</param>
+    private void RestorePendingInsertState(object item)
+    {
+        if (this._detachedPendingInserts.Remove(item))
+        {
+            this.Context.Entry(item).State = EntityState.Added;
+        }
+
+        this.ForEachAggregate(item, this.RestorePendingInsertState);
     }
 
     /// <inheritdoc />
