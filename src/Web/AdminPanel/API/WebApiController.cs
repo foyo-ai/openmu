@@ -11,9 +11,12 @@ namespace MUnique.OpenMU.Web.API
     using MUnique.OpenMU.DataModel.Entities;
     using MUnique.OpenMU.GameLogic;
     using MUnique.OpenMU.GameLogic.Attributes;
+    using MUnique.OpenMU.GameLogic.PlugIns.PeriodicTasks;
     using MUnique.OpenMU.GameServer;
     using MUnique.OpenMU.Interfaces;
     using MUnique.OpenMU.Persistence;
+    using MUnique.OpenMU.Persistence.Json;
+    using MUnique.OpenMU.PlugIns;
 
     /// <summary>
     /// Authenticated API used by the external player website, so the website never accesses the
@@ -442,6 +445,63 @@ namespace MUnique.OpenMU.Web.API
                     clearStats = this.ConfigBool("WebApi:ResetClearStats", false),
                 },
             });
+        }
+
+        private static readonly IReadOnlyDictionary<Guid, string> ScheduledEventNames = new Dictionary<Guid, string>
+        {
+            [new Guid("95E68C14-AD87-4B3C-AF46-45B8F1C3BC2A")] = "Blood Castle",
+            [new Guid("3AD96A70-ED24-4979-80B8-169E461E548F")] = "Chaos Castle",
+            [new Guid("61C61A58-211E-4D6A-9EA1-D25E0C4A47C5")] = "Devil Square",
+            [new Guid("6542E452-9780-45B8-85AE-4036422E9A6E")] = "Happy Hour",
+            [new Guid("8B2CD316-C4B0-452F-8C7D-CE696356D437")] = "Wandering Merchants",
+            [new Guid("06D18A9E-2919-4C17-9DBC-6E4F7756495C")] = "Golden Invasion",
+            [new Guid("548A76CC-242C-441C-BC9D-6C22745A2D72")] = "Red Dragon Invasion",
+        };
+
+        /// <summary>Returns the scheduled in-game events (name, daily UTC start times, duration in
+        /// minutes), read from the periodic-task plugin configuration so the website can show a
+        /// live event schedule with countdowns.</summary>
+        /// <returns>The active scheduled events that have a non-empty timetable.</returns>
+        [HttpGet]
+        [Route("events")]
+        public async Task<IActionResult> EventsAsync()
+        {
+            var config = await this.GetConfigAsync().ConfigureAwait(false);
+            var events = new List<object>();
+
+            foreach (var plugIn in config.PlugInConfigurations)
+            {
+                if (!plugIn.IsActive || !ScheduledEventNames.TryGetValue(plugIn.TypeId, out var name))
+                {
+                    continue;
+                }
+
+                PeriodicTaskConfiguration? taskConfig;
+                try
+                {
+                    // A fresh IdReferenceHandler per config: it caches its resolver, so reusing one
+                    // across configs would leak $id state between them.
+                    taskConfig = plugIn.GetConfiguration<PeriodicTaskConfiguration>(new IdReferenceHandler());
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (taskConfig?.Timetable is not { Count: > 0 } timetable)
+                {
+                    continue;
+                }
+
+                events.Add(new
+                {
+                    name,
+                    durationMinutes = (int)taskConfig.TaskDuration.TotalMinutes,
+                    times = timetable.OrderBy(t => t).Select(t => t.ToString("HH:mm")).ToArray(),
+                });
+            }
+
+            return this.Ok(events);
         }
 
         private static object ToAccountDto(Account account) => new
