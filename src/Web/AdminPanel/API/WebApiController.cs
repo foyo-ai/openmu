@@ -420,6 +420,30 @@ namespace MUnique.OpenMU.Web.API
             return this.Ok(players);
         }
 
+        /// <summary>Returns live server rates/config for the website, read straight from the
+        /// game configuration (so the site never hardcodes rates that can drift).</summary>
+        /// <returns>Experience/master rates, level cap, characters-per-account and reset settings.</returns>
+        [HttpGet]
+        [Route("server-info")]
+        public async Task<IActionResult> ServerInfoAsync()
+        {
+            var config = await this.GetConfigAsync().ConfigureAwait(false);
+            return this.Ok(new
+            {
+                experienceRate = config.ExperienceRate,
+                masterExperienceRate = config.MasterExperienceRate,
+                maxLevel = config.MaximumLevel,
+                maxCharactersPerAccount = config.MaximumCharactersPerAccount,
+                reset = new
+                {
+                    minLevel = this.ConfigInt("WebApi:ResetMinLevel", 400),
+                    rewardPoints = this.ConfigInt("WebApi:ResetRewardPoints", 0),
+                    levelAfter = this.ConfigInt("WebApi:ResetLevelAfter", 1),
+                    clearStats = this.ConfigBool("WebApi:ResetClearStats", false),
+                },
+            });
+        }
+
         private static object ToAccountDto(Account account) => new
         {
             login = account.LoginName,
