@@ -280,6 +280,146 @@ namespace MUnique.OpenMU.Web.API
             return this.Ok(new { ok = true });
         }
 
+        /// <summary>Registers a new account.</summary>
+        /// <param name="request">The registration data.</param>
+        /// <returns>The created account, or an error.</returns>
+        [HttpPost]
+        [Route("accounts")]
+        public async Task<IActionResult> RegisterAsync([FromBody] RegisterRequest request)
+        {
+            var login = request?.Login?.Trim() ?? string.Empty;
+            if (login.Length is < 3 or > 10)
+            {
+                return this.Error(422, "invalid_login", "Login must be 3-10 characters.");
+            }
+
+            if ((request!.Password?.Length ?? 0) < 4)
+            {
+                return this.Error(422, "invalid_password", "Password is too short.");
+            }
+
+            using var context = await this.NewPlayerContextAsync().ConfigureAwait(false);
+            if (await context.GetAccountByLoginNameAsync(login).ConfigureAwait(false) is not null)
+            {
+                return this.Error(422, "login_taken", "That login name is already taken.");
+            }
+
+            var account = context.CreateNew<Account>();
+            account.LoginName = login;
+            account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            account.EMail = request.Email ?? string.Empty;
+            account.SecurityCode = request.SecurityCode ?? string.Empty;
+            account.RegistrationDate = DateTime.UtcNow;
+            account.State = AccountState.Normal;
+            await context.SaveChangesAsync().ConfigureAwait(false);
+            return this.Ok(ToAccountDto(account));
+        }
+
+        /// <summary>Authenticates an account by login + password.</summary>
+        /// <param name="request">Login and password.</param>
+        /// <returns>The account on success, or 401.</returns>
+        [HttpPost]
+        [Route("accounts/authenticate")]
+        public async Task<IActionResult> AuthenticateAsync([FromBody] AuthRequest request)
+        {
+            using var context = await this.NewPlayerContextAsync().ConfigureAwait(false);
+            var account = await context.GetAccountByLoginNameAsync(request?.Login ?? string.Empty, request?.Password ?? string.Empty).ConfigureAwait(false);
+            return account is null ? this.Error(401, "invalid_credentials", "Invalid login or password.") : this.Ok(ToAccountDto(account));
+        }
+
+        /// <summary>Changes an account's password (requires the current password).</summary>
+        /// <param name="login">The account login.</param>
+        /// <param name="request">Current + new password.</param>
+        /// <returns>Ok, or an error.</returns>
+        [HttpPatch]
+        [Route("accounts/{login}/password")]
+        public Task<IActionResult> UpdatePasswordAsync(string login, [FromBody] PasswordChangeRequest request)
+            => this.UpdateAccountAsync(login, request?.CurrentPassword, account =>
+            {
+                if ((request!.NewPassword?.Length ?? 0) < 4)
+                {
+                    return this.Error(422, "invalid_password", "Password is too short.");
+                }
+
+                account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+                return null;
+            });
+
+        /// <summary>Changes an account's email (requires the current password).</summary>
+        /// <param name="login">The account login.</param>
+        /// <param name="request">Current password + new email.</param>
+        /// <returns>Ok, or an error.</returns>
+        [HttpPatch]
+        [Route("accounts/{login}/email")]
+        public Task<IActionResult> UpdateEmailAsync(string login, [FromBody] EmailChangeRequest request)
+            => this.UpdateAccountAsync(login, request?.CurrentPassword, account =>
+            {
+                account.EMail = request!.Email ?? string.Empty;
+                return null;
+            });
+
+        /// <summary>Changes an account's security code (requires the current password).</summary>
+        /// <param name="login">The account login.</param>
+        /// <param name="request">Current password + new security code.</param>
+        /// <returns>Ok, or an error.</returns>
+        [HttpPatch]
+        [Route("accounts/{login}/security-code")]
+        public Task<IActionResult> UpdateSecurityCodeAsync(string login, [FromBody] SecurityCodeChangeRequest request)
+            => this.UpdateAccountAsync(login, request?.CurrentPassword, account =>
+            {
+                account.SecurityCode = request!.SecurityCode ?? string.Empty;
+                return null;
+            });
+
+        /// <summary>Returns a leaderboard (players by resets, killers by PK, or guilds by score).</summary>
+        /// <param name="type">players | killers | guilds.</param>
+        /// <param name="limit">Max rows.</param>
+        /// <returns>The ranking rows.</returns>
+        [HttpGet]
+        [Route("rankings")]
+        public async Task<IActionResult> RankingsAsync([FromQuery] string type = "players", [FromQuery] int limit = 100)
+        {
+            limit = Math.Clamp(limit, 1, 200);
+            using var context = await this.NewPlayerContextAsync().ConfigureAwait(false);
+
+            if (type == "guilds")
+            {
+                try
+                {
+                    var guilds = (await context.GetAsync<DataModel.Entities.Guild>().ConfigureAwait(false))
+                        .OrderByDescending(g => g.Score)
+                        .Take(limit)
+                        .Select((g, i) => new { rank = i + 1, name = g.Name, score = g.Score, members = g.Members?.Count ?? 0 })
+                        .ToList();
+                    return this.Ok(guilds);
+                }
+                catch
+                {
+                    return this.Ok(Array.Empty<object>());
+                }
+            }
+
+            var characters = (await context.GetAsync<Character>().ConfigureAwait(false))
+                .Where(c => c.CharacterStatus != CharacterStatus.Banned);
+
+            if (type == "killers")
+            {
+                var killers = characters
+                    .Where(c => c.PlayerKillCount > 0)
+                    .OrderByDescending(c => c.PlayerKillCount)
+                    .Take(limit)
+                    .Select((c, i) => new { rank = i + 1, name = c.Name, className = c.CharacterClass is { } cc ? (string)cc.Name : null, kills = c.PlayerKillCount });
+                return this.Ok(killers);
+            }
+
+            var players = characters
+                .Select(c => new { c, resets = AttributeValue(c, Stats.Resets.Id), level = AttributeValue(c, Stats.Level.Id) })
+                .OrderByDescending(x => x.resets).ThenByDescending(x => x.level)
+                .Take(limit)
+                .Select((x, i) => new { rank = i + 1, name = x.c.Name, className = x.c.CharacterClass is { } cc ? (string)cc.Name : null, x.resets, x.level });
+            return this.Ok(players);
+        }
+
         private static object ToAccountDto(Account account) => new
         {
             login = account.LoginName,
@@ -326,6 +466,31 @@ namespace MUnique.OpenMU.Web.API
         {
             var config = await this.GetConfigAsync().ConfigureAwait(false);
             return this._persistenceProvider.CreateNewPlayerContext(config);
+        }
+
+        /// <summary>Loads an account, verifies the current password, applies a change, and saves.</summary>
+        private async Task<IActionResult> UpdateAccountAsync(string login, string? currentPassword, Func<Account, IActionResult?> apply)
+        {
+            using var context = await this.NewPlayerContextAsync().ConfigureAwait(false);
+            var account = await context.GetAccountByLoginNameAsync(login).ConfigureAwait(false);
+            if (account is null)
+            {
+                return NotFound("not_found", "Account not found.");
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(currentPassword ?? string.Empty, account.PasswordHash))
+            {
+                return this.Error(403, "wrong_password", "Current password is incorrect.");
+            }
+
+            var error = apply(account);
+            if (error is not null)
+            {
+                return error;
+            }
+
+            await context.SaveChangesAsync().ConfigureAwait(false);
+            return this.Ok(new { ok = true });
         }
 
         private async ValueTask<GameConfiguration> GetConfigAsync()
@@ -479,6 +644,62 @@ namespace MUnique.OpenMU.Web.API
         public class DeleteRequest : LoginRequest
         {
             /// <summary>Gets or sets the account security code.</summary>
+            public string? SecurityCode { get; set; }
+        }
+
+        /// <summary>Request body for registering an account.</summary>
+        public class RegisterRequest
+        {
+            /// <summary>Gets or sets the login name.</summary>
+            public string? Login { get; set; }
+
+            /// <summary>Gets or sets the password.</summary>
+            public string? Password { get; set; }
+
+            /// <summary>Gets or sets the email.</summary>
+            public string? Email { get; set; }
+
+            /// <summary>Gets or sets the security code.</summary>
+            public string? SecurityCode { get; set; }
+        }
+
+        /// <summary>Request body for authenticating.</summary>
+        public class AuthRequest
+        {
+            /// <summary>Gets or sets the login name.</summary>
+            public string? Login { get; set; }
+
+            /// <summary>Gets or sets the password.</summary>
+            public string? Password { get; set; }
+        }
+
+        /// <summary>Request body for changing the password.</summary>
+        public class PasswordChangeRequest
+        {
+            /// <summary>Gets or sets the current password.</summary>
+            public string? CurrentPassword { get; set; }
+
+            /// <summary>Gets or sets the new password.</summary>
+            public string? NewPassword { get; set; }
+        }
+
+        /// <summary>Request body for changing the email.</summary>
+        public class EmailChangeRequest
+        {
+            /// <summary>Gets or sets the current password.</summary>
+            public string? CurrentPassword { get; set; }
+
+            /// <summary>Gets or sets the new email.</summary>
+            public string? Email { get; set; }
+        }
+
+        /// <summary>Request body for changing the security code.</summary>
+        public class SecurityCodeChangeRequest
+        {
+            /// <summary>Gets or sets the current password.</summary>
+            public string? CurrentPassword { get; set; }
+
+            /// <summary>Gets or sets the new security code.</summary>
             public string? SecurityCode { get; set; }
         }
     }
