@@ -47,5 +47,19 @@ internal class ServerListRequestHandler : IPacketHandler<Client>
         }
 
         await client.Connection.SendAsync(WritePacket).ConfigureAwait(false);
+
+        // Right after the server list, push the display metadata (name / pvp /
+        // group / subtitle) as an F4/07 packet. Clients which understand it use
+        // these values instead of their local ServerList.bmd; clients which do
+        // not (e.g. the original GMO client) ignore the unknown subcode.
+        int WriteMetadata()
+        {
+            var metadata = this._connectServer.ServerList.SerializeMetadata();
+            var span = client.Connection.Output.GetSpan(metadata.Length)[..metadata.Length];
+            metadata.CopyTo(span);
+            return span.Length;
+        }
+
+        await client.Connection.SendAsync(WriteMetadata).ConfigureAwait(false);
     }
 }
