@@ -3,6 +3,17 @@
     flex-direction: row;
 }
 
+/* Below the sidebar's 768px width threshold (see Navigation.scss) the sidebar
+   has no fixed width, so keeping the row layout leaves it stealing horizontal
+   space and squeezing/overflowing the content on phones. Stack it instead:
+   the sidebar becomes a full-width top bar (brand + hamburger) and the content
+   gets the full width below it. */
+@media (max-width: 767.98px) {
+    .page {
+        flex-direction: column;
+    }
+}
+
 main {
     flex: 1;
     min-width: 0;
