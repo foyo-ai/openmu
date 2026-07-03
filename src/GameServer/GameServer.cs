@@ -425,7 +425,16 @@ public sealed class GameServer : IGameServer, IDisposable, IGameServerContextPro
     /// Creates an instance of <see cref="ServerInfo"/> with the data of this instance.
     /// </summary>
     /// <returns>The created <see cref="ServerInfo"/>.</returns>
-    public ServerInfo CreateServerInfo() => new(this.Id, this.Description, this.CurrentConnections, this.MaximumConnections);
+    public ServerInfo CreateServerInfo() => new(this.Id, this.Description, this.CurrentConnections, this.MaximumConnections)
+    {
+        PvpEnabled = this.Context.PvpEnabled,
+
+        // Until dedicated config fields exist, derive the client grouping/order
+        // from the server id (the client groups by id / MAX_SERVER_PER_GROUP = 20).
+        GroupId = (byte)(this.Id / 20),
+        SortOrder = this.Id,
+        Subtitle = string.Empty,
+    };
 
     /// <inheritdoc/>
     public override string ToString()

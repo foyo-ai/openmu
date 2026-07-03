@@ -179,6 +179,11 @@ public class ConnectServer : IConnectServer, OpenMU.Interfaces.IConnectServer
                 EndPoint = publicEndPoint,
                 MaximumConnections = gameServer.MaximumConnections,
                 CurrentConnections = gameServer.CurrentConnections,
+                Name = gameServer.Description,
+                PvpFlag = gameServer.PvpEnabled ? (byte)0 : (byte)1,
+                GroupId = gameServer.GroupId,
+                SortOrder = gameServer.SortOrder,
+                Subtitle = gameServer.Subtitle,
             };
 
             if (this.ConnectInfos.TryAdd(serverListItem.ServerId, serverListItem.ConnectInfo))

@@ -494,6 +494,253 @@ public readonly ref struct ServerLoadInfoRef
 
 
 /// <summary>
+/// Is sent by the client when: This packet is sent by the (open source) client right after it received the server list, to ask for the server display metadata (name, pvp flag, group, subtitle).
+/// Causes reaction on server side: The server will send a ServerMetadataResponse back to the client. Older servers ignore this packet, so the client keeps its local ServerList.bmd data.
+/// </summary>
+public readonly ref struct ServerMetadataRequestRef
+{
+    private readonly Span<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerMetadataRequestRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ServerMetadataRequestRef(Span<byte> data)
+        : this(data, true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerMetadataRequestRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    /// <param name="initialize">If set to <c>true</c>, the header data is automatically initialized and written to the underlying span.</param>
+    private ServerMetadataRequestRef(Span<byte> data, bool initialize)
+    {
+        this._data = data;
+        if (initialize)
+        {
+            var header = this.Header;
+            header.Type = HeaderType;
+            header.Code = Code;
+            header.Length = (byte)Math.Min(data.Length, Length);
+            header.SubCode = SubCode;
+        }
+    }
+
+    /// <summary>
+    /// Gets the header type of this data packet.
+    /// </summary>
+    public static byte HeaderType => 0xC1;
+
+    /// <summary>
+    /// Gets the operation code of this data packet.
+    /// </summary>
+    public static byte Code => 0xF4;
+
+    /// <summary>
+    /// Gets the operation sub-code of this data packet.
+    /// The <see cref="Code" /> is used as a grouping key.
+    /// </summary>
+    public static byte SubCode => 0x07;
+
+    /// <summary>
+    /// Gets the initial length of this data packet. When the size is dynamic, this value may be bigger than actually needed.
+    /// </summary>
+    public static int Length => 4;
+
+    /// <summary>
+    /// Gets the header of this packet.
+    /// </summary>
+    public C1HeaderWithSubCodeRef Header => new (this._data);
+
+    /// <summary>
+    /// Performs an implicit conversion from a Span of bytes to a <see cref="ServerMetadataRequest"/>.
+    /// </summary>
+    /// <param name="packet">The packet as span.</param>
+    /// <returns>The packet as struct.</returns>
+    public static implicit operator ServerMetadataRequestRef(Span<byte> packet) => new (packet, false);
+
+    /// <summary>
+    /// Performs an implicit conversion from <see cref="ServerMetadataRequest"/> to a Span of bytes.
+    /// </summary>
+    /// <param name="packet">The packet as struct.</param>
+    /// <returns>The packet as byte span.</returns>
+    public static implicit operator Span<byte>(ServerMetadataRequestRef packet) => packet._data; 
+}
+
+
+/// <summary>
+/// Is sent by the server when: This packet is sent by the server after the client requested the server display metadata.
+/// Causes reaction on client side: The client shows the servers with the name, pvp flag, group and subtitle provided by the server, instead of the values from its local ServerList.bmd.
+/// </summary>
+public readonly ref struct ServerMetadataResponseRef
+{
+    private readonly Span<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerMetadataResponseRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ServerMetadataResponseRef(Span<byte> data)
+        : this(data, true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerMetadataResponseRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    /// <param name="initialize">If set to <c>true</c>, the header data is automatically initialized and written to the underlying span.</param>
+    private ServerMetadataResponseRef(Span<byte> data, bool initialize)
+    {
+        this._data = data;
+        if (initialize)
+        {
+            var header = this.Header;
+            header.Type = HeaderType;
+            header.Code = Code;
+            header.Length = (ushort)data.Length;
+            header.SubCode = SubCode;
+        }
+    }
+
+    /// <summary>
+    /// Gets the header type of this data packet.
+    /// </summary>
+    public static byte HeaderType => 0xC2;
+
+    /// <summary>
+    /// Gets the operation code of this data packet.
+    /// </summary>
+    public static byte Code => 0xF4;
+
+    /// <summary>
+    /// Gets the operation sub-code of this data packet.
+    /// The <see cref="Code" /> is used as a grouping key.
+    /// </summary>
+    public static byte SubCode => 0x07;
+
+    /// <summary>
+    /// Gets the header of this packet.
+    /// </summary>
+    public C2HeaderWithSubCodeRef Header => new (this._data);
+
+    /// <summary>
+    /// Gets or sets the server count.
+    /// </summary>
+    public ushort ServerCount
+    {
+        get => ReadUInt16BigEndian(this._data[5..]);
+        set => WriteUInt16BigEndian(this._data[5..], value);
+    }
+
+    /// <summary>
+    /// Gets the <see cref="ServerMetadataInfoRef"/> of the specified index.
+    /// </summary>
+        public ServerMetadataInfoRef this[int index] => new (this._data[(7 + index * ServerMetadataInfoRef.Length)..]);
+
+    /// <summary>
+    /// Performs an implicit conversion from a Span of bytes to a <see cref="ServerMetadataResponse"/>.
+    /// </summary>
+    /// <param name="packet">The packet as span.</param>
+    /// <returns>The packet as struct.</returns>
+    public static implicit operator ServerMetadataResponseRef(Span<byte> packet) => new (packet, false);
+
+    /// <summary>
+    /// Performs an implicit conversion from <see cref="ServerMetadataResponse"/> to a Span of bytes.
+    /// </summary>
+    /// <param name="packet">The packet as struct.</param>
+    /// <returns>The packet as byte span.</returns>
+    public static implicit operator Span<byte>(ServerMetadataResponseRef packet) => packet._data; 
+
+    /// <summary>
+    /// Calculates the size of the packet for the specified count of <see cref="ServerMetadataInfoRef"/>.
+    /// </summary>
+    /// <param name="serversCount">The count of <see cref="ServerMetadataInfoRef"/> from which the size will be calculated.</param>
+        
+    public static int GetRequiredSize(int serversCount) => serversCount * ServerMetadataInfoRef.Length + 7;
+
+
+/// <summary>
+/// Contains the display metadata of a server: id, pvp flag, group, sort order, name and subtitle..
+/// </summary>
+public readonly ref struct ServerMetadataInfoRef
+{
+    private readonly Span<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerMetadataInfoRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ServerMetadataInfoRef(Span<byte> data)
+    {
+        this._data = data;
+    }
+
+    /// <summary>
+    /// Gets the initial length of this data packet. When the size is dynamic, this value may be bigger than actually needed.
+    /// </summary>
+    public static int Length => 96;
+
+    /// <summary>
+    /// Gets or sets the server id.
+    /// </summary>
+    public ushort ServerId
+    {
+        get => ReadUInt16LittleEndian(this._data);
+        set => WriteUInt16LittleEndian(this._data, value);
+    }
+
+    /// <summary>
+    /// Gets or sets bit 0 marks the server as Non-PvP (0 = PvP, 1 = Non-PvP), matching the client's IsNonPvP logic.
+    /// </summary>
+    public byte PvpFlag
+    {
+        get => this._data[2];
+        set => this._data[2] = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the group id.
+    /// </summary>
+    public byte GroupId
+    {
+        get => this._data[3];
+        set => this._data[3] = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the sort order.
+    /// </summary>
+    public byte SortOrder
+    {
+        get => this._data[4];
+        set => this._data[4] = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the name.
+    /// </summary>
+    public string Name
+    {
+        get => this._data.ExtractString(5, 32, System.Text.Encoding.UTF8);
+        set => this._data.Slice(5, 32).WriteString(value, System.Text.Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Gets or sets the subtitle.
+    /// </summary>
+    public string Subtitle
+    {
+        get => this._data.ExtractString(37, 59, System.Text.Encoding.UTF8);
+        set => this._data.Slice(37, 59).WriteString(value, System.Text.Encoding.UTF8);
+    }
+}
+}
+
+
+/// <summary>
 /// Is sent by the client when: This packet is sent by the client (below season 1) after it connected and received the 'Hello' message.
 /// Causes reaction on server side: The server will send a ServerListResponseOld back to the client.
 /// </summary>

@@ -117,6 +117,83 @@
     <Packet>
       <HeaderType>C1HeaderWithSubCode</HeaderType>
       <Code>F4</Code>
+      <SubCode>07</SubCode>
+      <Name>ServerMetadataRequest</Name>
+      <Length>4</Length>
+      <Direction>ClientToServer</Direction>
+      <SentWhen>This packet is sent by the (open source) client right after it received the server list, to ask for the server display metadata (name, pvp flag, group, subtitle).</SentWhen>
+      <CausedReaction>The server will send a ServerMetadataResponse back to the client. Older servers ignore this packet, so the client keeps its local ServerList.bmd data.</CausedReaction>
+      <Fields>
+      </Fields>
+    </Packet>
+
+    <Packet>
+      <HeaderType>C2HeaderWithSubCode</HeaderType>
+      <Code>F4</Code>
+      <SubCode>07</SubCode>
+      <Name>ServerMetadataResponse</Name>
+      <Direction>ServerToClient</Direction>
+      <SentWhen>This packet is sent by the server after the client requested the server display metadata.</SentWhen>
+      <CausedReaction>The client shows the servers with the name, pvp flag, group and subtitle provided by the server, instead of the values from its local ServerList.bmd.</CausedReaction>
+      <Fields>
+        <Field>
+          <Index>5</Index>
+          <Type>ShortBigEndian</Type>
+          <Name>ServerCount</Name>
+        </Field>
+        <Field>
+          <Index>7</Index>
+          <Type>Structure[]</Type>
+          <TypeName>ServerMetadataInfo</TypeName>
+          <Name>Servers</Name>
+        </Field>
+      </Fields>
+      <Structures>
+        <Structure>
+          <Name>ServerMetadataInfo</Name>
+          <Description>Contains the display metadata of a server: id, pvp flag, group, sort order, name and subtitle.</Description>
+          <Length>96</Length>
+          <Fields>
+            <Field>
+              <Index>0</Index>
+              <Type>ShortLittleEndian</Type>
+              <Name>ServerId</Name>
+            </Field>
+            <Field>
+              <Index>2</Index>
+              <Type>Byte</Type>
+              <Name>PvpFlag</Name>
+              <Description>Bit 0 marks the server as Non-PvP (0 = PvP, 1 = Non-PvP), matching the client's IsNonPvP logic.</Description>
+            </Field>
+            <Field>
+              <Index>3</Index>
+              <Type>Byte</Type>
+              <Name>GroupId</Name>
+            </Field>
+            <Field>
+              <Index>4</Index>
+              <Type>Byte</Type>
+              <Name>SortOrder</Name>
+            </Field>
+            <Field>
+              <Index>5</Index>
+              <Type>String</Type>
+              <Name>Name</Name>
+              <Length>32</Length>
+            </Field>
+            <Field>
+              <Index>37</Index>
+              <Type>String</Type>
+              <Name>Subtitle</Name>
+              <Length>59</Length>
+            </Field>
+          </Fields>
+        </Structure>
+      </Structures>
+    </Packet>
+    <Packet>
+      <HeaderType>C1HeaderWithSubCode</HeaderType>
+      <Code>F4</Code>
       <SubCode>02</SubCode>
       <Name>ServerListRequestOld</Name>
       <Length>4</Length>

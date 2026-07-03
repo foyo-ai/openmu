@@ -45,6 +45,32 @@ internal class ServerListItem : IGameServerEntry
     public ushort ServerId { get; set; }
 
     /// <summary>
+    /// Gets or sets the display name of the server (from the game server definition).
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the pvp flag for the client server-select metadata.
+    /// Bit 0 marks the server as Non-PvP (0 = PvP, 1 = Non-PvP).
+    /// </summary>
+    public byte PvpFlag { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group id for the client server-select screen.
+    /// </summary>
+    public byte GroupId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the sort order for the client server-select screen.
+    /// </summary>
+    public byte SortOrder { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional subtitle shown next to the server name.
+    /// </summary>
+    public string Subtitle { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets the server load (usage rate).
     /// </summary>
     public byte ServerLoadPercentage

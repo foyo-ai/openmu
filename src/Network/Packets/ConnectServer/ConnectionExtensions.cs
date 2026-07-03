@@ -140,6 +140,31 @@ public static class ConnectionExtensions
     }
 
     /// <summary>
+    /// Sends a <see cref="ServerMetadataRequest" /> to this connection.
+    /// </summary>
+    /// <param name="connection">The connection.</param>
+    /// <remarks>
+    /// Is sent by the client when: This packet is sent by the (open source) client right after it received the server list, to ask for the server display metadata (name, pvp flag, group, subtitle).
+    /// Causes reaction on server side: The server will send a ServerMetadataResponse back to the client. Older servers ignore this packet, so the client keeps its local ServerList.bmd data.
+    /// </remarks>
+    public static async ValueTask SendServerMetadataRequestAsync(this IConnection? connection)
+    {
+        if (connection is null)
+        {
+            return;
+        }
+
+        int WritePacket()
+        {
+            var length = ServerMetadataRequestRef.Length;
+            var packet = new ServerMetadataRequestRef(connection.Output.GetSpan(length)[..length]);
+            return packet.Header.Length;
+        }
+
+        await connection.SendAsync(WritePacket).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Sends a <see cref="ServerListRequestOld" /> to this connection.
     /// </summary>
     /// <param name="connection">The connection.</param>

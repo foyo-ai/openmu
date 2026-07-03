@@ -190,6 +190,43 @@ internal class ServerList
     }
 
     /// <summary>
+    /// Serializes the server display metadata (name, pvp flag, group, order,
+    /// subtitle) to a ServerMetadataResponse packet for the client.
+    /// </summary>
+    /// <returns>The serialized metadata packet.</returns>
+    public byte[] SerializeMetadata()
+    {
+        this._lock.EnterReadLock();
+        try
+        {
+            var packet = new byte[ServerMetadataResponse.GetRequiredSize(this._servers.Count)];
+            var response = new ServerMetadataResponse(packet)
+            {
+                ServerCount = (ushort)this._servers.Count,
+            };
+
+            var i = 0;
+            foreach (var server in this._servers)
+            {
+                var block = response[i];
+                block.ServerId = server.ServerId;
+                block.PvpFlag = server.PvpFlag;
+                block.GroupId = server.GroupId;
+                block.SortOrder = server.SortOrder;
+                block.Name = server.Name;
+                block.Subtitle = server.Subtitle;
+                i++;
+            }
+
+            return packet;
+        }
+        finally
+        {
+            this._lock.ExitReadLock();
+        }
+    }
+
+    /// <summary>
     /// Invalidates the cache.
     /// </summary>
     private void InvalidateCache()

@@ -29,6 +29,9 @@ internal class ServerListHandler : IPacketHandler<Client>
         this._packetHandlers.Add(0x03, new ServerInfoRequestHandler(connectServer, loggerFactory.CreateLogger<ServerInfoRequestHandler>()));
         this._packetHandlers.Add(0x06, new ServerListRequestHandler(connectServer, loggerFactory.CreateLogger<ServerListRequestHandler>()));
 
+        // Custom (open source client): server display metadata (name, pvp, group, subtitle).
+        this._packetHandlers.Add(0x07, new ServerMetadataRequestHandler(connectServer, loggerFactory.CreateLogger<ServerMetadataRequestHandler>()));
+
         // old protocol:
         this._packetHandlers.Add(0x02, new ServerListRequestHandler(connectServer, loggerFactory.CreateLogger<ServerListRequestHandler>()));
     }

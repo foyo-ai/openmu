@@ -11,3 +11,5 @@
   * [C1 F4 03 - ConnectionInfo (by server)](C1-F4-03-ConnectionInfo_by-server.md)
   * [C1 F4 06 - ServerListRequest (by client)](C1-F4-06-ServerListRequest_by-client.md)
   * [C2 F4 06 - ServerListResponse (by server)](C2-F4-06-ServerListResponse_by-server.md)
+  * [C1 F4 07 - ServerMetadataRequest (by client)](C1-F4-07-ServerMetadataRequest_by-client.md)
+  * [C2 F4 07 - ServerMetadataResponse (by server)](C2-F4-07-ServerMetadataResponse_by-server.md)

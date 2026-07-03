@@ -111,6 +111,34 @@ public class PacketStructureTests
     }
 
     /// <summary>
+    /// Tests the packet size calculation for ServerMetadataRequest.
+    /// </summary>
+    [Test]
+    public void ServerMetadataRequest_PacketSizeValidation()
+    {
+        // Fixed-length packet validation
+        const int expectedLength = 4;
+        var actualLength = ServerMetadataRequestRef.Length;
+        
+        Assert.That(actualLength, Is.EqualTo(expectedLength), 
+            "Packet length mismatch: declared length does not match calculated size");
+    }
+
+    /// <summary>
+    /// Tests the packet size calculation for ServerMetadataResponse.
+    /// </summary>
+    [Test]
+    public void ServerMetadataResponse_PacketSizeValidation()
+    {
+        // Basic packet validation
+        // Validate header type and field boundaries
+        
+        // Field 'ServerCount' starts at index 5 with size 2
+        Assert.That(5, Is.GreaterThanOrEqualTo(0), 
+            "Field 'ServerCount' has invalid negative index");
+    }
+
+    /// <summary>
     /// Tests the packet size calculation for ServerListRequestOld.
     /// </summary>
     [Test]
