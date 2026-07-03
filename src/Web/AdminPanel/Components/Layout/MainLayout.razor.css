@@ -12,6 +12,30 @@
     .page {
         flex-direction: column;
     }
+
+    /* Data tables (server list, accounts, etc.) are full-width Bootstrap tables
+       with no responsive wrapper, so on phones their wide rows (e.g. the Action
+       buttons) overflowed the whole page and got cut off. Turn each table into
+       its own horizontal scroll area so it stays within the viewport and every
+       column stays reachable by scrolling the table sideways. */
+    .content ::deep table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Denser cells so more fits before horizontal scrolling is needed. */
+    .content ::deep td,
+    .content ::deep th {
+        padding: 0.4rem 0.5rem;
+    }
+
+    /* Belt-and-braces: never let a stray wide child scroll the whole page
+       sideways on phones; wide tables get their own scroll area (above). */
+    main {
+        overflow-x: hidden;
+    }
 }
 
 main {
