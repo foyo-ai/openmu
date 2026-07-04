@@ -3346,5 +3346,23 @@ namespace MUnique.OpenMU.GameLogic.Properties {
                 return ResourceManager.GetString("StatResetConfiguration_LogOut_Name", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Offline Store Command.
+        /// </summary>
+        public static string OffStoreChatCommandPlugIn_Name {
+            get {
+                return ResourceManager.GetString("OffStoreChatCommandPlugIn_Name", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Allows players to keep their personal store open with /offstore after the client disconnects..
+        /// </summary>
+        public static string OffStoreChatCommandPlugIn_Description {
+            get {
+                return ResourceManager.GetString("OffStoreChatCommandPlugIn_Description", resourceCulture);
+            }
+        }
     }
 }

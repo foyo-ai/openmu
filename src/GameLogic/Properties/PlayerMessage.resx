@@ -684,4 +684,19 @@
   <data name="StatsResetSuccessfully" xml:space="preserve">
     <value>Your stats have been reset. You have {0} level-up points available.</value>
   </data>
+  <data name="OffStoreStarted" xml:space="preserve">
+    <value>Offline store started. You can log back in at any time to stop it.</value>
+  </data>
+  <data name="OffStoreFailed" xml:space="preserve">
+    <value>Could not start the offline store. Please try again.</value>
+  </data>
+  <data name="OffStoreAlreadyActive" xml:space="preserve">
+    <value>An offline session is already active for this account.</value>
+  </data>
+  <data name="OffStoreMustBeAlive" xml:space="preserve">
+    <value>You must be alive to start the offline store.</value>
+  </data>
+  <data name="OffStoreRequiresOpenStore" xml:space="preserve">
+    <value>Open your personal store first, then use /offstore.</value>
+  </data>
 </root>

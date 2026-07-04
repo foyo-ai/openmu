@@ -28,5 +28,12 @@ public class CloseStoreAction
         }
 
         await player.ForEachWorldObserverAsync<IPlayerShopClosedPlugIn>(plugin => plugin.PlayerShopClosedAsync(player), true).ConfigureAwait(false);
+
+        // A store ghost without an open store has no purpose anymore (e.g. it sold out),
+        // so its offline session is stopped, which also saves the earned money.
+        if (player is Offline.OfflinePlayer { Mode: Offline.OfflinePlayerMode.Store, AccountLoginName: { } loginName })
+        {
+            await player.GameContext.OfflinePlayerManager.StopAsync(loginName).ConfigureAwait(false);
+        }
     }
 }

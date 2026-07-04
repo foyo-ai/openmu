@@ -1212,4 +1212,10 @@
   <data name="StatResetConfiguration_LogOut_Name" xml:space="preserve">
     <value>Log out</value>
   </data>
+  <data name="OffStoreChatCommandPlugIn_Name" xml:space="preserve">
+    <value>Offline Store Command</value>
+  </data>
+  <data name="OffStoreChatCommandPlugIn_Description" xml:space="preserve">
+    <value>Allows players to keep their personal store open with /offstore after the client disconnects. The ghost stops when the store sells out or the player logs back in.</value>
+  </data>
 </root>

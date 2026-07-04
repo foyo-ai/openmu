@@ -26,8 +26,9 @@ public sealed class OfflinePlayerManager
     /// </summary>
     /// <param name="realPlayer">The real player who typed the command.</param>
     /// <param name="loginName">The pre-validated account login name.</param>
+    /// <param name="mode">The behavior of the offline player.</param>
     /// <returns><c>true</c> if the offline session was started successfully.</returns>
-    public async ValueTask<bool> StartAsync(Player realPlayer, string loginName)
+    public async ValueTask<bool> StartAsync(Player realPlayer, string loginName, OfflinePlayerMode mode = OfflinePlayerMode.Leveling)
     {
         var account = realPlayer.Account;
         var character = realPlayer.SelectedCharacter;
@@ -37,7 +38,7 @@ public sealed class OfflinePlayerManager
             return false;
         }
 
-        var sentinel = new OfflinePlayer(realPlayer.GameContext);
+        var sentinel = new OfflinePlayer(realPlayer.GameContext, mode);
 
         // Atomically claim the slot to prevent racing during initialization.
         if (!this._activePlayers.TryAdd(loginName, sentinel))
@@ -46,7 +47,8 @@ public sealed class OfflinePlayerManager
             return false;
         }
 
-        if (!this.TryChargeInitialZenCost(realPlayer))
+        // Only leveling sessions are charged - a store ghost doesn't farm anything.
+        if (mode == OfflinePlayerMode.Leveling && !this.TryChargeInitialZenCost(realPlayer))
         {
             await this.RemoveAndDisposeAsync(loginName, sentinel).ConfigureAwait(false);
             return false;

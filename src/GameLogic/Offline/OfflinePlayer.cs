@@ -20,10 +20,17 @@ public sealed class OfflinePlayer : Player
     /// Initializes a new instance of the <see cref="OfflinePlayer"/> class.
     /// </summary>
     /// <param name="gameContext">The game context.</param>
-    public OfflinePlayer(IGameContext gameContext)
+    /// <param name="mode">The behavior of the offline player.</param>
+    public OfflinePlayer(IGameContext gameContext, OfflinePlayerMode mode = OfflinePlayerMode.Leveling)
         : base(gameContext)
     {
+        this.Mode = mode;
     }
+
+    /// <summary>
+    /// Gets the behavior of this offline player.
+    /// </summary>
+    public OfflinePlayerMode Mode { get; }
 
     /// <summary>
     /// Gets the login name this offline player belongs to.
@@ -55,7 +62,18 @@ public sealed class OfflinePlayer : Player
 
             await this.ClientReadyAfterMapChangeAsync().ConfigureAwait(false);
 
-            this.StartIntelligence();
+            if (this.Mode == OfflinePlayerMode.Store && !(this.ShopStorage?.StoreOpen ?? false))
+            {
+                // The store restore in OnPlayerEnteredWorldAsync didn't succeed - without an open
+                // store this ghost has no purpose, so we treat the start as failed.
+                this.Logger.LogWarning("Offline store ghost for {CharacterName} could not restore the store.", character.Name);
+                return false;
+            }
+
+            if (this.Mode == OfflinePlayerMode.Leveling)
+            {
+                this.StartIntelligence();
+            }
 
             this.Logger.LogDebug(
                 "Offline player started for character {CharacterName} on map {Map} at {Position}.",

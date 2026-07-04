@@ -1760,5 +1760,50 @@ namespace MUnique.OpenMU.GameLogic.Properties {
                 return ResourceManager.GetString("StatsResetSuccessfully", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Offline store started. You can log back in at any time to stop it..
+        /// </summary>
+        public static string OffStoreStarted {
+            get {
+                return ResourceManager.GetString("OffStoreStarted", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Could not start the offline store. Please try again..
+        /// </summary>
+        public static string OffStoreFailed {
+            get {
+                return ResourceManager.GetString("OffStoreFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to An offline session is already active for this account..
+        /// </summary>
+        public static string OffStoreAlreadyActive {
+            get {
+                return ResourceManager.GetString("OffStoreAlreadyActive", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to You must be alive to start the offline store..
+        /// </summary>
+        public static string OffStoreMustBeAlive {
+            get {
+                return ResourceManager.GetString("OffStoreMustBeAlive", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Open your personal store first, then use /offstore..
+        /// </summary>
+        public static string OffStoreRequiresOpenStore {
+            get {
+                return ResourceManager.GetString("OffStoreRequiresOpenStore", resourceCulture);
+            }
+        }
     }
 }
