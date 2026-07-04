@@ -76,7 +76,12 @@ public class Gates : InitializerBase
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(32, "Elveland2", 2500, 10, gates[268]));
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(33, "PeaceSwamp", 15000, 400, gates[273]));
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(34, "Raklion", 15000, 280, gates[287]));
-        this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(37, "Vulcanus", 15000, 30, gates[294]));
+
+        // Index 42 (not 37) to match the client's movereq data, which sends warp
+        // index 42 for Vulcanus. With 37 the server rejected the request with
+        // "Unknown warp index" so the map could not be reached via the move (M)
+        // window. See FixVulcanusWarpIndexUpdatePlugIn for the update on existing DBs.
+        this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(42, "Vulcanus", 15000, 30, gates[294]));
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(44, "LorenMarket", 18000, 200, gates[333]));
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(43, "Elveland3", 3000, 10, gates[269]));
         this.GameConfiguration.WarpList.Add(this.CreateWarpInfo(45, "KanturuRuins3", 15000, 160, gates[334]));
