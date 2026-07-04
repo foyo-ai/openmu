@@ -402,24 +402,25 @@ namespace MUnique.OpenMU.Web.API
                 }
             }
 
-            var characters = (await context.GetAsync<Character>().ConfigureAwait(false))
-                .Where(c => c.CharacterStatus != CharacterStatus.Banned);
+            // The rankings are projected by the database (name/class/kills/stat values only).
+            // Loading the characters as objects instead would materialize every character's
+            // whole object graph, which is far too expensive for an endpoint that the website
+            // polls periodically.
+            var config = await this.GetConfigAsync().ConfigureAwait(false);
+            var classNames = config.CharacterClasses.ToDictionary(c => c.GetId(), c => (string)c.Name);
+            string? ClassName(Guid? classId) => classId.HasValue && classNames.TryGetValue(classId.Value, out var name) ? name : null;
 
             if (type == "killers")
             {
-                var killers = characters
-                    .Where(c => c.PlayerKillCount > 0)
-                    .OrderByDescending(c => c.PlayerKillCount)
-                    .Take(limit)
-                    .Select((c, i) => new { rank = i + 1, name = c.Name, className = c.CharacterClass is { } cc ? (string)cc.Name : null, kills = c.PlayerKillCount });
+                var killerEntries = await context.GetCharacterRankingByKillsAsync(limit).ConfigureAwait(false);
+                var killers = killerEntries
+                    .Select((e, i) => new { rank = i + 1, name = e.Name, className = ClassName(e.CharacterClassId), kills = e.PlayerKillCount });
                 return this.Ok(killers);
             }
 
-            var players = characters
-                .Select(c => new { c, resets = AttributeValue(c, Stats.Resets.Id), level = AttributeValue(c, Stats.Level.Id) })
-                .OrderByDescending(x => x.resets).ThenByDescending(x => x.level)
-                .Take(limit)
-                .Select((x, i) => new { rank = i + 1, name = x.c.Name, className = x.c.CharacterClass is { } cc ? (string)cc.Name : null, x.resets, x.level });
+            var playerEntries = await context.GetCharacterRankingByStatsAsync(Stats.Resets.Id, Stats.Level.Id, limit).ConfigureAwait(false);
+            var players = playerEntries
+                .Select((e, i) => new { rank = i + 1, name = e.Name, className = ClassName(e.CharacterClassId), resets = (int)e.Resets, level = (int)e.Level });
             return this.Ok(players);
         }
 

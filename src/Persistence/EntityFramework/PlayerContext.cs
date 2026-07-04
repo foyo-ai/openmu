@@ -113,4 +113,44 @@ internal class PlayerContext : CachingEntityFrameworkContext, IPlayerContext
 
         return null;
     }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByStatsAsync(Guid resetsAttributeId, Guid levelAttributeId, int count, CancellationToken cancellationToken = default)
+    {
+        using (this.RepositoryProvider.ContextStack.UseContext(this))
+        {
+            return await this.Context.Set<Character>()
+                .AsNoTracking()
+                .Where(c => c.CharacterStatus != DataModel.Entities.CharacterStatus.Banned)
+                .OrderByDescending(c => c.RawAttributes.Where(a => a.DefinitionId == resetsAttributeId).Select(a => a.Value).FirstOrDefault())
+                .ThenByDescending(c => c.RawAttributes.Where(a => a.DefinitionId == levelAttributeId).Select(a => a.Value).FirstOrDefault())
+                .ThenBy(c => c.Name)
+                .Take(count)
+                .Select(c => new CharacterRankingEntry(
+                    c.Name,
+                    c.CharacterClassId,
+                    c.PlayerKillCount,
+                    c.RawAttributes.Where(a => a.DefinitionId == resetsAttributeId).Select(a => a.Value).FirstOrDefault(),
+                    c.RawAttributes.Where(a => a.DefinitionId == levelAttributeId).Select(a => a.Value).FirstOrDefault()))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByKillsAsync(int count, CancellationToken cancellationToken = default)
+    {
+        using (this.RepositoryProvider.ContextStack.UseContext(this))
+        {
+            return await this.Context.Set<Character>()
+                .AsNoTracking()
+                .Where(c => c.CharacterStatus != DataModel.Entities.CharacterStatus.Banned && c.PlayerKillCount > 0)
+                .OrderByDescending(c => c.PlayerKillCount)
+                .ThenBy(c => c.Name)
+                .Take(count)
+                .Select(c => new CharacterRankingEntry(c.Name, c.CharacterClassId, c.PlayerKillCount, 0f, 0f))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
 }

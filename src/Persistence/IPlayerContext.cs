@@ -87,4 +87,26 @@ public interface IPlayerContext : IContext
     /// The account; Otherwise, null.
     /// </returns>
     ValueTask<Account?> GetAccountByCharacterNameAsync(string characterName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the character ranking ordered by the reset stat (descending) and then the level
+    /// stat (descending), excluding banned characters. The rows are projected by the
+    /// database, so no character object graphs are loaded.
+    /// </summary>
+    /// <param name="resetsAttributeId">The identifier of the reset stat attribute definition.</param>
+    /// <param name="levelAttributeId">The identifier of the level stat attribute definition.</param>
+    /// <param name="count">The maximum number of rows.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ranking rows.</returns>
+    ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByStatsAsync(Guid resetsAttributeId, Guid levelAttributeId, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the character ranking ordered by the player kill count (descending), excluding
+    /// banned characters and characters without kills. The rows are projected by the
+    /// database, so no character object graphs are loaded.
+    /// </summary>
+    /// <param name="count">The maximum number of rows.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ranking rows.</returns>
+    ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByKillsAsync(int count, CancellationToken cancellationToken = default);
 }

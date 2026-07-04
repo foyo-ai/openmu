@@ -69,4 +69,43 @@ public class PlayerInMemoryContext : InMemoryContext, IPlayerContext
         var allAccounts = await this.Provider.GetRepository<Account>().GetAllAsync(cancellationToken).ConfigureAwait(false);
         return allAccounts.FirstOrDefault(account => account.Characters.Any(c => c.Name == characterName));
     }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByStatsAsync(Guid resetsAttributeId, Guid levelAttributeId, int count, CancellationToken cancellationToken = default)
+    {
+        var characters = await this.GetRankableCharactersAsync(cancellationToken).ConfigureAwait(false);
+        return characters
+            .Select(c => new CharacterRankingEntry(c.Name, c.CharacterClass?.GetId(), c.PlayerKillCount, GetStatValue(c, resetsAttributeId), GetStatValue(c, levelAttributeId)))
+            .OrderByDescending(e => e.Resets)
+            .ThenByDescending(e => e.Level)
+            .ThenBy(e => e.Name)
+            .Take(count)
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<CharacterRankingEntry>> GetCharacterRankingByKillsAsync(int count, CancellationToken cancellationToken = default)
+    {
+        var characters = await this.GetRankableCharactersAsync(cancellationToken).ConfigureAwait(false);
+        return characters
+            .Where(c => c.PlayerKillCount > 0)
+            .OrderByDescending(c => c.PlayerKillCount)
+            .ThenBy(c => c.Name)
+            .Take(count)
+            .Select(c => new CharacterRankingEntry(c.Name, c.CharacterClass?.GetId(), c.PlayerKillCount, 0f, 0f))
+            .ToList();
+    }
+
+    private static float GetStatValue(DataModel.Entities.Character character, Guid definitionId)
+    {
+        return character.Attributes?.FirstOrDefault(a => a.Definition?.Id == definitionId)?.Value ?? 0f;
+    }
+
+    private async ValueTask<IEnumerable<DataModel.Entities.Character>> GetRankableCharactersAsync(CancellationToken cancellationToken)
+    {
+        var allAccounts = await this.Provider.GetRepository<Account>().GetAllAsync(cancellationToken).ConfigureAwait(false);
+        return allAccounts
+            .SelectMany(account => account.Characters)
+            .Where(c => c.CharacterStatus != DataModel.Entities.CharacterStatus.Banned);
+    }
 }
