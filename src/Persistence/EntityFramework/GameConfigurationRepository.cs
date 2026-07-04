@@ -39,6 +39,21 @@ internal class GameConfigurationRepository : GenericRepository<GameConfiguration
             throw new InvalidOperationException("There is no current context set.");
         }
 
+        if (currentContext.Context is EntityDataContext { CurrentGameConfiguration: { } providedConfiguration }
+            && providedConfiguration.Id == id)
+        {
+            // The requested configuration was already provided to the context, e.g. by the
+            // admin panel which passes its cached configuration into the edit context.
+            // Reuse it instead of loading the whole object graph again, which takes seconds
+            // and previously ran on every visit of a config edit page.
+            if (currentContext.Context.Entry(providedConfiguration).State == EntityState.Detached)
+            {
+                currentContext.Context.Attach(providedConfiguration);
+            }
+
+            return providedConfiguration;
+        }
+
         var database = currentContext.Context.Database;
         await database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         try
