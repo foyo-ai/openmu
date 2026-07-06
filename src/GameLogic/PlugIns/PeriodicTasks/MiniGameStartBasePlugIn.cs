@@ -33,8 +33,12 @@ public abstract class MiniGameStartBasePlugIn<TConfiguration, TGameState> : Peri
         }
 
         if (state.State == PeriodicTaskState.Started
-            && await state.Context.GetMiniGameAsync(miniGameDefinition, null!).ConfigureAwait(false) is { State: MiniGameState.Open })
+            && await state.Context.GetExistingMiniGameAsync(miniGameDefinition, null).ConfigureAwait(false) is { State: MiniGameState.Open })
         {
+            // Only a still-open, live instance counts as "enter now". We must NOT create one here
+            // (which the old GetMiniGameAsync did): once the event's entry window has passed and the
+            // instance disposed, re-opening it would let players enter a fresh empty map for the rest
+            // of the periodic task duration.
             return TimeSpan.Zero;
         }
 
@@ -49,7 +53,8 @@ public abstract class MiniGameStartBasePlugIn<TConfiguration, TGameState> : Peri
         var state = this.GetStateByGameContext(gameContext);
         if (state.State == PeriodicTaskState.Started)
         {
-            return await state.Context.GetMiniGameAsync(miniGameDefinition, null!).ConfigureAwait(false);
+            // Non-creating lookup: don't resurrect a finished event just to report its state.
+            return await state.Context.GetExistingMiniGameAsync(miniGameDefinition, null).ConfigureAwait(false);
         }
 
         return null;

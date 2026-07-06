@@ -298,6 +298,22 @@ public class GameContext : AsyncDisposable, IGameContext
     }
 
     /// <inheritdoc />
+    public async ValueTask<MiniGameContext?> GetExistingMiniGameAsync(MiniGameDefinition miniGameDefinition, Player? requester)
+    {
+        var miniGameKey = MiniGameMapKey.Create(miniGameDefinition, requester!);
+        using (await this._mapInitializerLock.LockAsync().ConfigureAwait(false))
+        {
+            if (this._miniGames.TryGetValue(miniGameKey, out var miniGameContext)
+                && miniGameContext is { IsDisposed: false, IsDisposing: false })
+            {
+                return miniGameContext;
+            }
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc />
     public async ValueTask RemoveMiniGameAsync(MiniGameContext miniGameContext)
     {
         using var l = await this._mapInitializerLock.LockAsync().ConfigureAwait(false);

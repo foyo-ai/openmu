@@ -159,6 +159,17 @@ public interface IGameContext
     ValueTask<MiniGameContext> GetMiniGameAsync(MiniGameDefinition miniGameDefinition, Player requester);
 
     /// <summary>
+    /// Tries to get an existing, non-disposed mini game for the specified definition,
+    /// <em>without creating a new one</em>. Read-only checks (e.g. whether entering is currently
+    /// possible) must use this instead of <see cref="GetMiniGameAsync"/>, otherwise they would
+    /// re-open an already finished event and let players enter an empty instance.
+    /// </summary>
+    /// <param name="miniGameDefinition">The mini game definition.</param>
+    /// <param name="requester">The requesting player (may be null for shared games).</param>
+    /// <returns>The existing context, or <c>null</c> if there is no live instance.</returns>
+    ValueTask<MiniGameContext?> GetExistingMiniGameAsync(MiniGameDefinition miniGameDefinition, Player? requester);
+
+    /// <summary>
     /// Removes the mini game instance from the context.
     /// </summary>
     /// <param name="miniGameContext">The context of the mini game.</param>
