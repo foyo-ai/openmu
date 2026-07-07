@@ -2,6 +2,7 @@
 @using System.Diagnostics.CodeAnalysis
 @using MUnique.OpenMU.Web.Shared.Services
 @using MUnique.OpenMU.Persistence
+@using MUnique.OpenMU.DataModel.Configuration.Items
 
 @typeparam TObject
 @inherits NotifyableInputBase<TObject>
@@ -22,16 +23,36 @@
             }
             else if (typeof(TObject).IsConfigurationType() && item is IIdentifiable identifiable)
             {
+                @ItemImage(item)
                 <NavLink href="@("edit-config/" + typeof(TObject).FullName + "/" + identifiable.Id)">@CaptionFactory(item)</NavLink>
             }
             else
             {
+                @ItemImage(item)
                 @CaptionFactory(item)
             }
         </SelectedTemplate>
         <ResultTemplate Context="item">
+            @ItemImage(item)
             @CaptionFactory(item)
         </ResultTemplate>
     </Typeahead>
     <ValidationMessage For=@this.ValueExpression />
 </div>
+
+@code {
+    /// <summary>
+    /// Renders the item icon when the looked-up object is an <see cref="ItemDefinition"/>, so item
+    /// lookups (e.g. in plugin configurations) show the item image next to its name. Other types render nothing.
+    /// </summary>
+    // Item sprites are drawn on a 120x126 canvas with the item offset by (38,42) and each grid cell
+    // 42px (see MuItem). Crop to the item's grid size and shift the image so the item is shown without
+    // the surrounding transparent padding (which otherwise makes small items like jewels look tiny).
+    private RenderFragment? ItemImage(TObject? item) => item is ItemDefinition def
+        ? @<span style="@($"display:inline-block;flex:none;overflow:hidden;vertical-align:middle;margin-right:8px;width:{def.Width * 42}px;height:{def.Height * 42}px;")">
+               <img src="@($"_content/MUnique.OpenMU.Web.ItemEditor/img/items/item_{def.Group}_{def.Number}_0.png")"
+                    alt="" style="position:relative;left:-38px;top:-42px;max-width:none;"
+                    onerror="this.parentElement.style.display='none';" />
+           </span>
+        : null;
+}

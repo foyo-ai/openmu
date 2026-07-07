@@ -43,6 +43,15 @@ internal partial class Account : MUnique.OpenMU.DataModel.Entities.Account, IIde
     public override ICollection<MUnique.OpenMU.DataModel.Entities.Character> Characters => base.Characters ??= new CollectionAdapter<MUnique.OpenMU.DataModel.Entities.Character, Character>(this.RawCharacters);
 
     /// <summary>
+    /// Gets the raw collection of <see cref="ItemBank" />.
+    /// </summary>
+    public ICollection<ItemBankEntry> RawItemBank { get; } = new EntityFramework.List<ItemBankEntry>();
+    
+    /// <inheritdoc/>
+    [NotMapped]
+    public override ICollection<MUnique.OpenMU.DataModel.Entities.ItemBankEntry> ItemBank => base.ItemBank ??= new CollectionAdapter<MUnique.OpenMU.DataModel.Entities.ItemBankEntry, ItemBankEntry>(this.RawItemBank);
+
+    /// <summary>
     /// Gets the raw collection of <see cref="Attributes" />.
     /// </summary>
     public ICollection<StatAttribute> RawAttributes { get; } = new EntityFramework.List<StatAttribute>();

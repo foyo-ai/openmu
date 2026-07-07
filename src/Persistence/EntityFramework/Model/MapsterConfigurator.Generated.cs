@@ -62,6 +62,9 @@ public static class MapsterConfigurator
         Mapster.TypeAdapterConfig.GlobalSettings.NewConfig<MUnique.OpenMU.DataModel.Entities.ItemAppearance, MUnique.OpenMU.DataModel.Entities.ItemAppearance>()
             .Include<ItemAppearance, BasicModel.ItemAppearance>();
 
+        Mapster.TypeAdapterConfig.GlobalSettings.NewConfig<MUnique.OpenMU.DataModel.Entities.ItemBankEntry, MUnique.OpenMU.DataModel.Entities.ItemBankEntry>()
+            .Include<ItemBankEntry, BasicModel.ItemBankEntry>();
+
         Mapster.TypeAdapterConfig.GlobalSettings.NewConfig<MUnique.OpenMU.DataModel.Entities.ItemOptionLink, MUnique.OpenMU.DataModel.Entities.ItemOptionLink>()
             .Include<ItemOptionLink, BasicModel.ItemOptionLink>();
 

@@ -411,3 +411,17 @@ body {
 [data-theme="dark"] .alert hr {
     border-top-color: rgba(255, 255, 255, 0.15) !important;
 }
+
+/*
+ * Fix: keep the item-search (Typeahead) dropdown above the rows that follow it.
+ * The table row FadeIn animation uses `animation-fill-mode: forwards`, which leaves a
+ * `transform: scale(1)` on every <tr>. That transform creates a stacking context, trapping
+ * the absolutely-positioned Typeahead dropdown inside its row so later rows and the "Create"
+ * button paint over it. While a typeahead in a row is focused (its dropdown is open),
+ * neutralize the transform and lift the row so the dropdown can float above everything.
+ */
+tr:has(.typeahead-controls:focus-within) {
+    transform: none !important;
+    position: relative;
+    z-index: 3;
+}

@@ -33,6 +33,7 @@ public class ExtendedTypeContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.GuildMember>();
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.Item>();
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.ItemAppearance>();
+        modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.ItemBankEntry>();
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.ItemOptionLink>();
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.ItemStorage>();
         modelBuilder.Ignore<MUnique.OpenMU.DataModel.Entities.LetterBody>();
@@ -115,6 +116,7 @@ public class ExtendedTypeContext : Microsoft.EntityFrameworkCore.DbContext
         // All members which are marked with the MemberOfAggregateAttribute, should be defined with ON DELETE CASCADE.
         modelBuilder.Entity<Account>().HasOne(entity => entity.RawVault).WithOne().OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Account>().HasMany(entity => entity.RawCharacters).WithOne().OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Account>().HasMany(entity => entity.RawItemBank).WithOne().OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Account>().HasMany(entity => entity.RawAttributes).WithOne().OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<AppearanceData>().HasMany(entity => entity.RawEquippedItems).WithOne().OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Character>().HasMany(entity => entity.RawAttributes).WithOne().OnDelete(DeleteBehavior.Cascade);

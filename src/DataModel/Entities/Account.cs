@@ -138,6 +138,14 @@ public class Account
     public virtual ICollection<Character> Characters { get; protected set; } = null!;
 
     /// <summary>
+    /// Gets or sets the account item bank: per-item-type stored counts, kept as numbers
+    /// so that bankable items (e.g. jewels) do not occupy inventory or vault slots.
+    /// </summary>
+    [MemberOfAggregate]
+    [HiddenAtCreation]
+    public virtual ICollection<ItemBankEntry> ItemBank { get; protected set; } = null!;
+
+    /// <summary>
     /// Gets or sets the stat attributes which are applied across all characters of the account.
     /// </summary>
     /// <remarks>
