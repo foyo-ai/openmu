@@ -123,23 +123,12 @@ public class ItemBankChatCommandPlugIn : ChatCommandPlugInBase<ItemBankChatComma
 
     private static int GetBalance(Account account, ItemDefinition definition)
     {
-        return account.ItemBank.FirstOrDefault(e => e.ItemGroup == definition.Group && e.ItemNumber == definition.Number)?.Count ?? 0;
+        return account.GetItemBankCount(definition.Group, definition.Number);
     }
 
     private static void AddBalance(Player player, ItemDefinition definition, int delta)
     {
-        var account = player.Account!;
-        var entry = account.ItemBank.FirstOrDefault(e => e.ItemGroup == definition.Group && e.ItemNumber == definition.Number);
-        if (entry is null)
-        {
-            entry = player.PersistenceContext.CreateNew<ItemBankEntry>();
-            entry.ItemGroup = definition.Group;
-            entry.ItemNumber = definition.Number;
-            entry.Count = 0;
-            account.ItemBank.Add(entry);
-        }
-
-        entry.Count += delta;
+        player.AddToItemBank(definition.Group, definition.Number, delta);
     }
 
     private async ValueTask ShowBalancesAsync(Player player, ItemBankConfiguration config)

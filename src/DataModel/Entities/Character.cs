@@ -225,6 +225,19 @@ public class Character
     public bool IsStoreOpened { get; set; }
 
     /// <summary>
+    /// Gets or sets the item group of the currency this personal store is priced in.
+    /// When both this and <see cref="StoreCurrencyItemNumber"/> are set, item prices in this
+    /// store are counts of that item (a bankable jewel); when null, the store is priced in Zen.
+    /// </summary>
+    public byte? StoreCurrencyItemGroup { get; set; }
+
+    /// <summary>
+    /// Gets or sets the item number of the currency this personal store is priced in. See
+    /// <see cref="StoreCurrencyItemGroup"/>.
+    /// </summary>
+    public short? StoreCurrencyItemNumber { get; set; }
+
+    /// <summary>
     /// Gets or sets the stat attributes.
     /// </summary>
     /// <remarks>
