@@ -45,6 +45,15 @@ public class ShowShopItemListExtendedPlugIn : IShowShopItemListPlugIn
         var itemSerializer = this._player.ItemSerializer;
         var playerId = requestedPlayer.GetId(this._player);
         var items = requestedPlayer.ShopStorage.Items.ToList();
+
+        // When the seller priced the store in a bankable jewel (see /shopcurrency), the item's StorePrice is
+        // a count of that jewel rather than Zen. We encode the currency item in PriceItemType (group in the
+        // highest 4 bits, number in the remaining 12) and the count in RequiredItemAmount, leaving MoneyPrice 0.
+        var currencyGroup = requestedPlayer.SelectedCharacter.StoreCurrencyItemGroup;
+        var currencyNumber = requestedPlayer.SelectedCharacter.StoreCurrencyItemNumber;
+        var priceItemType = currencyGroup is { } group && currencyNumber is { } number
+            ? (ushort)((group << 12) | (number & 0x0FFF))
+            : (ushort)0;
         int Write()
         {
             var size = PlayerShopItemListExtendedRef.GetRequiredSize(items.Count, PlayerShopItemExtendedRef.GetRequiredSize(itemSerializer.NeededSpace));
@@ -67,9 +76,17 @@ public class ShowShopItemListExtendedPlugIn : IShowShopItemListPlugIn
             {
                 var itemBlock = new PlayerShopItemExtendedRef(span[actualSize..]);
                 itemBlock.ItemSlot = item.ItemSlot;
-                itemBlock.MoneyPrice = (uint)(item.StorePrice ?? 0);
+                if (priceItemType != 0)
+                {
+                    itemBlock.MoneyPrice = 0;
+                    itemBlock.PriceItemType = priceItemType;
+                    itemBlock.RequiredItemAmount = (ushort)Math.Clamp(item.StorePrice ?? 0, 0, ushort.MaxValue);
+                }
+                else
+                {
+                    itemBlock.MoneyPrice = (uint)(item.StorePrice ?? 0);
+                }
 
-                // todo: when we can define a price in items, set PriceItemType and RequiredItemAmount
                 var itemSize = itemSerializer.SerializeItem(itemBlock.ItemData, item);
                 actualSize += PlayerShopItemExtendedRef.GetRequiredSize(itemSize);
                 i++;
