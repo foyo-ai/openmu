@@ -12268,6 +12268,158 @@ public readonly struct PlayerShopItemListExtended
 
 
 /// <summary>
+/// Is sent by the server when: After the player requested the account item bank balances, e.g. by opening the jewel bank window (the client sends the /bankdata command).
+/// Causes reaction on client side: The jewel bank window shows the configured bankable items and their banked counts.
+/// </summary>
+public readonly struct ItemBankBalances
+{
+    private readonly Memory<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ItemBankBalances"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ItemBankBalances(Memory<byte> data)
+        : this(data, true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ItemBankBalances"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    /// <param name="initialize">If set to <c>true</c>, the header data is automatically initialized and written to the underlying span.</param>
+    private ItemBankBalances(Memory<byte> data, bool initialize)
+    {
+        this._data = data;
+        if (initialize)
+        {
+            var header = this.Header;
+            header.Type = HeaderType;
+            header.Code = Code;
+            header.Length = (ushort)data.Length;
+            header.SubCode = SubCode;
+        }
+    }
+
+    /// <summary>
+    /// Gets the header type of this data packet.
+    /// </summary>
+    public static byte HeaderType => 0xC2;
+
+    /// <summary>
+    /// Gets the operation code of this data packet.
+    /// </summary>
+    public static byte Code => 0xD5;
+
+    /// <summary>
+    /// Gets the operation sub-code of this data packet.
+    /// The <see cref="Code" /> is used as a grouping key.
+    /// </summary>
+    public static byte SubCode => 0x00;
+
+    /// <summary>
+    /// Gets the header of this packet.
+    /// </summary>
+    public C2HeaderWithSubCode Header => new (this._data);
+
+    /// <summary>
+    /// Gets or sets the item count.
+    /// </summary>
+    public byte ItemCount
+    {
+        get => this._data.Span[5];
+        set => this._data.Span[5] = value;
+    }
+
+    /// <summary>
+    /// Gets the <see cref="ItemBankBalanceEntry"/> of the specified index.
+    /// </summary>
+        public ItemBankBalanceEntry this[int index] => new (this._data.Slice(6 + index * ItemBankBalanceEntry.Length));
+
+    /// <summary>
+    /// Performs an implicit conversion from a Memory of bytes to a <see cref="ItemBankBalances"/>.
+    /// </summary>
+    /// <param name="packet">The packet as span.</param>
+    /// <returns>The packet as struct.</returns>
+    public static implicit operator ItemBankBalances(Memory<byte> packet) => new (packet, false);
+
+    /// <summary>
+    /// Performs an implicit conversion from <see cref="ItemBankBalances"/> to a Memory of bytes.
+    /// </summary>
+    /// <param name="packet">The packet as struct.</param>
+    /// <returns>The packet as byte span.</returns>
+    public static implicit operator Memory<byte>(ItemBankBalances packet) => packet._data; 
+
+    /// <summary>
+    /// Calculates the size of the packet for the specified count of <see cref="ItemBankBalanceEntry"/>.
+    /// </summary>
+    /// <param name="balancesCount">The count of <see cref="ItemBankBalanceEntry"/> from which the size will be calculated.</param>
+        
+    public static int GetRequiredSize(int balancesCount) => balancesCount * ItemBankBalanceEntry.Length + 6;
+
+
+/// <summary>
+/// One configured bankable item and its account-wide banked count..
+/// </summary>
+public readonly struct ItemBankBalanceEntry
+{
+    private readonly Memory<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ItemBankBalanceEntry"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ItemBankBalanceEntry(Memory<byte> data)
+    {
+        this._data = data;
+    }
+
+    /// <summary>
+    /// Gets the initial length of this data packet. When the size is dynamic, this value may be bigger than actually needed.
+    /// </summary>
+    public static int Length => 15;
+
+    /// <summary>
+    /// Gets or sets the item group.
+    /// </summary>
+    public byte ItemGroup
+    {
+        get => this._data.Span[0];
+        set => this._data.Span[0] = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the item number.
+    /// </summary>
+    public ushort ItemNumber
+    {
+        get => ReadUInt16LittleEndian(this._data.Span[1..]);
+        set => WriteUInt16LittleEndian(this._data.Span[1..], value);
+    }
+
+    /// <summary>
+    /// Gets or sets the count.
+    /// </summary>
+    public uint Count
+    {
+        get => ReadUInt32LittleEndian(this._data.Span[3..]);
+        set => WriteUInt32LittleEndian(this._data.Span[3..], value);
+    }
+
+    /// <summary>
+    /// Gets or sets the alias.
+    /// </summary>
+    public string Alias
+    {
+        get => this._data.Span.ExtractString(7, 8, System.Text.Encoding.UTF8);
+        set => this._data.Slice(7, 8).Span.WriteString(value, System.Text.Encoding.UTF8);
+    }
+}
+}
+
+
+/// <summary>
 /// Is sent by the server when: After the player gets into scope of a player with an opened shop.
 /// Causes reaction on client side: The player shop title is shown at the specified players.
 /// </summary>
