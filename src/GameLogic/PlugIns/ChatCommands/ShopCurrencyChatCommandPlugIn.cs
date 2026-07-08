@@ -53,6 +53,7 @@ public class ShopCurrencyChatCommandPlugIn : ChatCommandPlugInBase<ShopCurrencyC
             character.StoreCurrencyItemGroup = null;
             character.StoreCurrencyItemNumber = null;
             await player.ShowBlueMessageAsync("Your store is now priced in Zen.").ConfigureAwait(false);
+            await ShopCurrencyDataChatCommandPlugIn.SendCurrentAsync(player, character).ConfigureAwait(false);
             return;
         }
 
@@ -68,6 +69,7 @@ public class ShopCurrencyChatCommandPlugIn : ChatCommandPlugInBase<ShopCurrencyC
         character.StoreCurrencyItemGroup = item.Item.Group;
         character.StoreCurrencyItemNumber = item.Item.Number;
         await player.ShowBlueMessageAsync($"Your store is now priced in {item.Item.Name}. Prices are the number of {item.Item.Name}.").ConfigureAwait(false);
+        await ShopCurrencyDataChatCommandPlugIn.SendCurrentAsync(player, character).ConfigureAwait(false);
     }
 
     private IEnumerable<ItemBankChatCommandPlugIn.BankableItem> GetBankableItems(Player player)
