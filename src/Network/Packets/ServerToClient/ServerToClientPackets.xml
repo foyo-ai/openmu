@@ -4609,6 +4609,28 @@
       </Structures>
     </Packet>
     <Packet>
+      <HeaderType>C1HeaderWithSubCode</HeaderType>
+      <Code>D6</Code>
+      <SubCode>00</SubCode>
+      <Name>ShopCurrency</Name>
+      <Length>7</Length>
+      <Direction>ServerToClient</Direction>
+      <SentWhen>After the player opens the personal store setup window (the client sends the /shopcurdata command) or changes the store currency.</SentWhen>
+      <CausedReaction>The shop currency selector highlights the store's current currency. ItemGroup 0xFF and ItemNumber 0xFFFF mean Zen.</CausedReaction>
+      <Fields>
+        <Field>
+          <Index>4</Index>
+          <Type>Byte</Type>
+          <Name>ItemGroup</Name>
+        </Field>
+        <Field>
+          <Index>5</Index>
+          <Type>ShortLittleEndian</Type>
+          <Name>ItemNumber</Name>
+        </Field>
+      </Fields>
+    </Packet>
+    <Packet>
       <HeaderType>C2HeaderWithSubCode</HeaderType>
       <Code>3F</Code>
       <SubCode>00</SubCode>

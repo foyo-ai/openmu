@@ -2495,6 +2495,36 @@ public static class ConnectionExtensions
     }
 
     /// <summary>
+    /// Sends a <see cref="ShopCurrency" /> to this connection.
+    /// </summary>
+    /// <param name="connection">The connection.</param>
+    /// <param name="itemGroup">The item group.</param>
+    /// <param name="itemNumber">The item number.</param>
+    /// <remarks>
+    /// Is sent by the server when: After the player opens the personal store setup window (the client sends the /shopcurdata command) or changes the store currency.
+    /// Causes reaction on client side: The shop currency selector highlights the store's current currency. ItemGroup 0xFF and ItemNumber 0xFFFF mean Zen.
+    /// </remarks>
+    public static async ValueTask SendShopCurrencyAsync(this IConnection? connection, byte @itemGroup, ushort @itemNumber)
+    {
+        if (connection is null)
+        {
+            return;
+        }
+
+        int WritePacket()
+        {
+            var length = ShopCurrencyRef.Length;
+            var packet = new ShopCurrencyRef(connection.Output.GetSpan(length)[..length]);
+            packet.ItemGroup = @itemGroup;
+            packet.ItemNumber = @itemNumber;
+
+            return packet.Header.Length;
+        }
+
+        await connection.SendAsync(WritePacket).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Sends a <see cref="ShowEffect" /> to this connection.
     /// </summary>
     /// <param name="connection">The connection.</param>

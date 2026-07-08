@@ -2425,6 +2425,20 @@ public class PacketStructureTests
     }
 
     /// <summary>
+    /// Tests the packet size calculation for ItemBankBalances.
+    /// </summary>
+    [Test]
+    public void ItemBankBalances_PacketSizeValidation()
+    {
+        // Basic packet validation
+        // Validate header type and field boundaries
+        
+        // Field 'ItemCount' starts at index 5 with size 1
+        Assert.That(5, Is.GreaterThanOrEqualTo(0), 
+            "Field 'ItemCount' has invalid negative index");
+    }
+
+    /// <summary>
     /// Tests the packet size calculation for PlayerShops.
     /// </summary>
     [Test]

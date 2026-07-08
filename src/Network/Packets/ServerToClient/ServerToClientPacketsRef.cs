@@ -11641,6 +11641,101 @@ public readonly ref struct ItemBankBalanceEntryRef
 
 
 /// <summary>
+/// Is sent by the server when: After the player opens the personal store setup window (the client sends the /shopcurdata command) or changes the store currency.
+/// Causes reaction on client side: The shop currency selector highlights the store's current currency. ItemGroup 0xFF and ItemNumber 0xFFFF mean Zen.
+/// </summary>
+public readonly ref struct ShopCurrencyRef
+{
+    private readonly Span<byte> _data;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShopCurrencyRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    public ShopCurrencyRef(Span<byte> data)
+        : this(data, true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShopCurrencyRef"/> struct.
+    /// </summary>
+    /// <param name="data">The underlying data.</param>
+    /// <param name="initialize">If set to <c>true</c>, the header data is automatically initialized and written to the underlying span.</param>
+    private ShopCurrencyRef(Span<byte> data, bool initialize)
+    {
+        this._data = data;
+        if (initialize)
+        {
+            var header = this.Header;
+            header.Type = HeaderType;
+            header.Code = Code;
+            header.Length = (byte)Math.Min(data.Length, Length);
+            header.SubCode = SubCode;
+        }
+    }
+
+    /// <summary>
+    /// Gets the header type of this data packet.
+    /// </summary>
+    public static byte HeaderType => 0xC1;
+
+    /// <summary>
+    /// Gets the operation code of this data packet.
+    /// </summary>
+    public static byte Code => 0xD6;
+
+    /// <summary>
+    /// Gets the operation sub-code of this data packet.
+    /// The <see cref="Code" /> is used as a grouping key.
+    /// </summary>
+    public static byte SubCode => 0x00;
+
+    /// <summary>
+    /// Gets the initial length of this data packet. When the size is dynamic, this value may be bigger than actually needed.
+    /// </summary>
+    public static int Length => 7;
+
+    /// <summary>
+    /// Gets the header of this packet.
+    /// </summary>
+    public C1HeaderWithSubCodeRef Header => new (this._data);
+
+    /// <summary>
+    /// Gets or sets the item group.
+    /// </summary>
+    public byte ItemGroup
+    {
+        get => this._data[4];
+        set => this._data[4] = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the item number.
+    /// </summary>
+    public ushort ItemNumber
+    {
+        get => ReadUInt16LittleEndian(this._data[5..]);
+        set => WriteUInt16LittleEndian(this._data[5..], value);
+    }
+
+    /// <summary>
+    /// Performs an implicit conversion from a Span of bytes to a <see cref="ShopCurrency"/>.
+    /// </summary>
+    /// <param name="packet">The packet as span.</param>
+    /// <returns>The packet as struct.</returns>
+    public static implicit operator ShopCurrencyRef(Span<byte> packet) => new (packet, false);
+
+    /// <summary>
+    /// Performs an implicit conversion from <see cref="ShopCurrency"/> to a Span of bytes.
+    /// </summary>
+    /// <param name="packet">The packet as struct.</param>
+    /// <returns>The packet as byte span.</returns>
+    public static implicit operator Span<byte>(ShopCurrencyRef packet) => packet._data; 
+}
+
+
+/// <summary>
 /// Is sent by the server when: After the player gets into scope of a player with an opened shop.
 /// Causes reaction on client side: The player shop title is shown at the specified players.
 /// </summary>
