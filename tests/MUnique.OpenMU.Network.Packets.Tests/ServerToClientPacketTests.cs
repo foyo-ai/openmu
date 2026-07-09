@@ -2439,6 +2439,28 @@ public class PacketStructureTests
     }
 
     /// <summary>
+    /// Tests the packet size calculation for ShopCurrency.
+    /// </summary>
+    [Test]
+    public void ShopCurrency_PacketSizeValidation()
+    {
+        // Fixed-length packet validation
+        const int expectedLength = 7;
+        var actualLength = ShopCurrencyRef.Length;
+        
+        Assert.That(actualLength, Is.EqualTo(expectedLength), 
+            "Packet length mismatch: declared length does not match calculated size");
+        
+        // Validate field 'ItemGroup' boundary
+        Assert.That(4 + 1, Is.LessThanOrEqualTo(expectedLength), 
+            "Field 'ItemGroup' exceeds packet boundary");
+        
+        // Validate field 'ItemNumber' boundary
+        Assert.That(5 + 2, Is.LessThanOrEqualTo(expectedLength), 
+            "Field 'ItemNumber' exceeds packet boundary");
+    }
+
+    /// <summary>
     /// Tests the packet size calculation for PlayerShops.
     /// </summary>
     [Test]
