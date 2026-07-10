@@ -27,8 +27,12 @@ else
     {
         base.OnParametersSet();
         this._elements?.Clear();
-        if (string.IsNullOrEmpty(this.Marked))
+        if (string.IsNullOrEmpty(this.Marked) || string.IsNullOrEmpty(this.Text))
         {
+            // Nothing to highlight (no search term, or the text is null/empty). Returning here
+            // also guards the Text.Length/Substring calls below against a null Text, which some
+            // callers pass (e.g. a plugin without a [Display] name has a null PlugInName) and
+            // which otherwise throws a NullReferenceException that breaks the whole Blazor circuit.
             return;
         }
 
