@@ -33,6 +33,12 @@ public class ItemBankChatCommandPlugIn : ChatCommandPlugInBase<ItemBankChatComma
 {
     private const string Command = "/bank";
 
+    /// <summary>
+    /// The "deposit all" sentinel amount. Matches the client's <c>kBankAllAmount</c> (NewUIJewelBank);
+    /// a deposit of at least this amount also absorbs packed jewels of the same type.
+    /// </summary>
+    private const int DepositAllAmount = 9999;
+
     /// <inheritdoc />
     public ItemBankConfiguration? Configuration { get; set; }
 
@@ -147,21 +153,37 @@ public class ItemBankChatCommandPlugIn : ChatCommandPlugInBase<ItemBankChatComma
 
     private async ValueTask DepositAsync(Player player, ItemDefinition definition, int amount)
     {
-        var items = player.Inventory!.Items.Where(i => i.Definition == definition).Take(amount).ToList();
-        if (items.Count == 0)
-        {
-            await player.ShowBlueMessageAsync($"You have no {definition.Name} in your inventory.").ConfigureAwait(false);
-            return;
-        }
-
-        foreach (var toDeposit in items)
+        var singles = player.Inventory!.Items.Where(i => i.Definition == definition).Take(amount).ToList();
+        var deposited = singles.Count;
+        foreach (var toDeposit in singles)
         {
             await player.Inventory.RemoveItemAsync(toDeposit).ConfigureAwait(false);
             await player.InvokeViewPlugInAsync<IItemRemovedPlugIn>(p => p.RemoveItemAsync(toDeposit.ItemSlot)).ConfigureAwait(false);
         }
 
-        AddBalance(player, definition, items.Count);
-        await player.ShowBlueMessageAsync($"Deposited {items.Count} {definition.Name}. Balance: {GetBalance(player.Account!, definition)}.").ConfigureAwait(false);
+        // On a "deposit all" (Ctrl+right-click, amount == the client's kBankAllAmount), also absorb any
+        // packed jewels of the same type: each packed jewel is a bundle of (level + 1) * 10 single jewels,
+        // credited to the single jewel's bank balance. A specific numeric amount deposits singles only.
+        if (amount >= DepositAllAmount
+            && player.GameContext.Configuration.JewelMixes.FirstOrDefault(m => m.SingleJewel == definition) is { MixedJewel: { } packedDefinition })
+        {
+            var packedItems = player.Inventory.Items.Where(i => i.Definition == packedDefinition).ToList();
+            foreach (var packed in packedItems)
+            {
+                await player.Inventory.RemoveItemAsync(packed).ConfigureAwait(false);
+                await player.InvokeViewPlugInAsync<IItemRemovedPlugIn>(p => p.RemoveItemAsync(packed.ItemSlot)).ConfigureAwait(false);
+                deposited += (packed.Level + 1) * 10;
+            }
+        }
+
+        if (deposited == 0)
+        {
+            await player.ShowBlueMessageAsync($"You have no {definition.Name} in your inventory.").ConfigureAwait(false);
+            return;
+        }
+
+        AddBalance(player, definition, deposited);
+        await player.ShowBlueMessageAsync($"Deposited {deposited} {definition.Name}. Balance: {GetBalance(player.Account!, definition)}.").ConfigureAwait(false);
     }
 
     private async ValueTask WithdrawAsync(Player player, ItemDefinition definition, int amount)
