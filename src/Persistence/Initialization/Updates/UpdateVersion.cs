@@ -427,4 +427,9 @@ public enum UpdateVersion
     /// The version of the <see cref="FixVulcanusWarpIndexUpdatePlugIn"/>.
     /// </summary>
     FixVulcanusWarpIndex = 84,
+
+    /// <summary>
+    /// The version of the <see cref="AddCrywolfAndBalgassWarpsUpdatePlugIn"/>.
+    /// </summary>
+    AddCrywolfAndBalgassWarps = 85,
 }
