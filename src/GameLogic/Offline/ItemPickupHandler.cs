@@ -16,7 +16,6 @@ using MUnique.OpenMU.Interfaces;
 public sealed class ItemPickupHandler
 {
     private const byte MinPickupRange = 1;
-    private const byte JewelItemGroup = 14;
 
     private static readonly PickupItemAction PickupAction = new();
 
@@ -93,7 +92,10 @@ public sealed class ItemPickupHandler
             return false;
         }
 
-        if (this._config.PickJewel && item.Definition?.Group == JewelItemGroup)
+        // Pick up only real jewels (Bless/Soul/Life/Chaos/Creation/Guardian/Gemstone/Harmony/refine),
+        // NOT the whole misc item group 14 — that group also holds Devil's Eye/Key, potions and scrolls,
+        // which were being vacuumed up. IsJewel also correctly includes Jewel of Chaos (a different group).
+        if (this._config.PickJewel && item.IsJewel(this._player.GameContext.Configuration))
         {
             return true;
         }

@@ -150,6 +150,32 @@ public static class ItemExtensions
     }
 
     /// <summary>
+    /// Determines whether this item is a jewel (Bless, Soul, Life, Chaos, Creation, Guardian,
+    /// Gemstone, Harmony, refine stones, or their packed variants), based on the configured
+    /// <see cref="MUnique.OpenMU.DataModel.Configuration.GameConfiguration.JewelMixes"/>.
+    /// This is the authoritative jewel set (the same one used by the jewel bank / packing) and,
+    /// unlike a plain item-group check, it excludes the non-jewel members of the mixed misc group
+    /// (e.g. Devil's Eye/Key, potions, scrolls) and includes Jewel of Chaos, which lives in a
+    /// different item group.
+    /// </summary>
+    /// <param name="item">The item.</param>
+    /// <param name="configuration">The game configuration providing the jewel definitions.</param>
+    /// <returns><c>true</c> if the item is a jewel; otherwise, <c>false</c>.</returns>
+    public static bool IsJewel(this Item item, MUnique.OpenMU.DataModel.Configuration.GameConfiguration configuration)
+    {
+        if (item.Definition is not { } definition)
+        {
+            return false;
+        }
+
+        return configuration.JewelMixes.Any(mix =>
+            IsSameDefinition(mix.SingleJewel, definition) || IsSameDefinition(mix.MixedJewel, definition));
+
+        static bool IsSameDefinition(ItemDefinition? jewelDefinition, ItemDefinition itemDefinition)
+            => jewelDefinition is { } jewel && jewel.Group == itemDefinition.Group && jewel.Number == itemDefinition.Number;
+    }
+
+    /// <summary>
     /// Determines whether this instance is a is weapon which deals physical damage.
     /// </summary>
     /// <param name="item">The item.</param>

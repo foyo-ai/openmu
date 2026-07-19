@@ -161,11 +161,18 @@ public sealed class CombatHandler
     private async ValueTask ExecuteAttackAsync(IAttackable target)
     {
         var skill = this.SelectAttackSkill();
-        if (skill == null && this._config?.FallbackBasicAttack != true)
+        if (skill == null
+            && this._config?.FallbackBasicAttack != true
+            && this.HasAnyViableConfiguredAttackSkill())
         {
+            // The character HAS usable skills that are simply not ready this tick (cooldown/resources),
+            // and basic-attack fallback is disabled - wait rather than throwing a weak basic attack.
             return;
         }
 
+        // Otherwise attack: with the selected skill, or a plain basic attack (skill == null). We fall
+        // back to a basic attack when the configured skills are not viable for this character (it does
+        // not have them / cannot cast them) so a bad or incompatible skill config never blocks the auto.
         await this.ExecuteAttackAsync(target, skill, false).ConfigureAwait(false);
     }
 
@@ -282,6 +289,25 @@ public sealed class CombatHandler
         var strategy = this._player.GameContext.PlugInManager.GetStrategy<short, ITargetedSkillPlugin>(skill.Number)
             ?? DefaultPlugin;
         await strategy.PerformSkillAsync(this._player, target, (ushort)skill.Number).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns whether at least one of the configured attack skills actually exists in the character's
+    /// skill list (i.e. is viable for this character). When none are viable, the auto skips them and
+    /// falls back to a basic attack instead of standing idle.
+    /// </summary>
+    private bool HasAnyViableConfiguredAttackSkill()
+    {
+        var config = this._config;
+        var skillList = this._player.SkillList;
+        if (config is null || skillList is null)
+        {
+            return false;
+        }
+
+        return (config.BasicSkillId > 0 && skillList.GetSkill((ushort)config.BasicSkillId) is not null)
+            || (config.ActivationSkill1Id > 0 && skillList.GetSkill((ushort)config.ActivationSkill1Id) is not null)
+            || (config.ActivationSkill2Id > 0 && skillList.GetSkill((ushort)config.ActivationSkill2Id) is not null);
     }
 
     private SkillEntry? SelectAttackSkill()

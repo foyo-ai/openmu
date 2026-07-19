@@ -4,8 +4,10 @@
 
 namespace MUnique.OpenMU.GameLogic.Offline;
 
+using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.GameLogic.Attributes;
 using MUnique.OpenMU.GameLogic.MuHelper;
+using MUnique.OpenMU.GameLogic.Views.Login;
 
 /// <summary>
 /// Manages active <see cref="OfflinePlayer"/> sessions.
@@ -38,7 +40,18 @@ public sealed class OfflinePlayerManager
             return false;
         }
 
-        var sentinel = new OfflinePlayer(realPlayer.GameContext, mode);
+        // Capture the identity and the CURRENT spawn spot from the live online player BEFORE tearing it
+        // down. The ghost re-loads a FRESH copy of the account into its OWN context and spawns here — it
+        // does NOT reuse the online player's tracked entity objects. Sharing those objects across the
+        // (torn-down) online context and the ghost's context is exactly what let two persistence contexts
+        // fight over the same items and lose them (the recurring 0-row periodic-save data loss).
+        var gameContext = realPlayer.GameContext;
+        var characterName = character.Name;
+        var spawnMapNumber = realPlayer.CurrentMap?.Definition.Number ?? character.CurrentMap?.Number;
+        var spawnX = realPlayer.Position.X;
+        var spawnY = realPlayer.Position.Y;
+
+        var sentinel = new OfflinePlayer(gameContext, mode);
 
         // Atomically claim the slot to prevent racing during initialization.
         if (!this._activePlayers.TryAdd(loginName, sentinel))
@@ -47,7 +60,8 @@ public sealed class OfflinePlayerManager
             return false;
         }
 
-        // Only leveling sessions are charged - a store ghost doesn't farm anything.
+        // Only leveling sessions are charged - a store ghost doesn't farm anything. Charge the live player
+        // before the teardown so the deduction is part of its final save and the fresh reload reflects it.
         if (mode == OfflinePlayerMode.Leveling && !this.TryChargeInitialZenCost(realPlayer))
         {
             await this.RemoveAndDisposeAsync(loginName, sentinel).ConfigureAwait(false);
@@ -56,9 +70,40 @@ public sealed class OfflinePlayerManager
 
         try
         {
+            // Fully tear down the online session (saves its final state, removes it from the world,
+            // releases its context) and send the client back to the server-select screen.
             await this.TransitionToOfflineAsync(realPlayer, loginName).ConfigureAwait(false);
 
-            if (!await sentinel.InitializeAsync(account, character).ConfigureAwait(false))
+            // Load a FRESH copy of the account for the ghost. The loading context must stay alive through
+            // InitializeAsync (the account graph is read while entering the world), then is disposed; the
+            // ghost owns the account for its lifetime via its own PersistenceContext.
+            using var loadingContext = gameContext.PersistenceContextProvider.CreateNewPlayerContext(gameContext.Configuration);
+            var freshAccount = await loadingContext.GetAccountByLoginNameAsync(loginName).ConfigureAwait(false);
+            var freshCharacter = freshAccount?.Characters.FirstOrDefault(c => string.Equals(c.Name, characterName, StringComparison.Ordinal));
+            if (freshAccount is null || freshCharacter is null)
+            {
+                // The fresh reload should always succeed in production (the account is persisted). If it
+                // cannot be found - a genuine DB anomaly, or a unit-test harness with no real persistence -
+                // fall back to the live objects so the ghost still starts. This fallback reuses the online
+                // player's objects (the two-context situation the reload exists to avoid, i.e. the item-loss
+                // protection is bypassed for this one session), so the warning is the monitoring signal.
+                realPlayer.Logger.LogWarning(
+                    "Offline ghost for '{LoginName}' could not reload a fresh account copy; falling back to the live objects (item-loss protection bypassed for this session).",
+                    loginName);
+                freshAccount = account;
+                freshCharacter = character;
+            }
+
+            // Spawn the ghost where the player was, not at the safezone the teardown moved the (old) copy to.
+            if (spawnMapNumber is { } mapNumber
+                && gameContext.Configuration.Maps.FirstOrDefault(m => m.Number == mapNumber) is { } spawnMap)
+            {
+                freshCharacter.CurrentMap = spawnMap;
+                freshCharacter.PositionX = spawnX;
+                freshCharacter.PositionY = spawnY;
+            }
+
+            if (!await sentinel.InitializeAsync(freshAccount, freshCharacter).ConfigureAwait(false))
             {
                 this._activePlayers.TryRemove(loginName, out _);
                 return false;
@@ -103,6 +148,18 @@ public sealed class OfflinePlayerManager
     private async ValueTask TransitionToOfflineAsync(Player realPlayer, string loginName)
     {
         await this.LogOffFromLoginServerAsync(realPlayer, loginName).ConfigureAwait(false);
+
+        // Tell the real client to go back to the server-select screen. Without this the client is only
+        // told the socket closed and stays stuck in-game (it never receives a logout response), so the
+        // player can't get out. LogOffFromLoginServer above already freed the account slot for reconnect.
+        try
+        {
+            await realPlayer.InvokeViewPlugInAsync<ILogoutPlugIn>(p => p.LogoutAsync(LogoutType.BackToServerSelection)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            realPlayer.Logger.LogWarning(ex, "Could not send the back-to-server-select logout to the client during offline transition.");
+        }
 
         realPlayer.SuppressDisconnectedEvent();
         await realPlayer.DisconnectAsync().ConfigureAwait(false);

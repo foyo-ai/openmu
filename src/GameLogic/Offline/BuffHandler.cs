@@ -246,8 +246,11 @@ public sealed class BuffHandler
             return false;
         }
 
-        return target.MagicEffectList.ActiveEffects.Values
-            .Any(e => e.Definition == effectDef);
+        // Snapshot the active effects before scanning. ActiveEffects is a SortedList that other tasks
+        // (effect expiry, new buffs) can mutate concurrently; iterating it live throws "Collection was
+        // modified", and that exception would abort the whole auto tick (attack + buff) for this bot.
+        var activeEffects = target.MagicEffectList.ActiveEffects.Values.ToList();
+        return activeEffects.Any(e => e.Definition == effectDef);
     }
 
     private void UpdatePeriodicBuffTimer()
